@@ -100,8 +100,8 @@ const createCamera = function(gl, program) {
   let up = vec3.fromValues(0, 1, 0);
   let at = vec3.fromValues(0, 0.5, 0);
   let pitch = 0;
-  const MOVEMENT_SPEED_FACTOR = 0.005;
-  const STRAFE_FACTOR = MOVEMENT_SPEED_FACTOR * 10;
+  const MOVEMENT_SPEED_FACTOR = 0.05;
+  const STRAFE_FACTOR = MOVEMENT_SPEED_FACTOR;
   const TURN_DEGREES = Math.PI / 75;
   return {
     apply: () => {
@@ -134,17 +134,25 @@ const createCamera = function(gl, program) {
       gl.uniformMatrix4fv(program.u_View, false, view);
     },
 
-    moveForward: () => {
+    moveForward: (disableVerticalMovement = false) => {
       let direction = vec3.create();
       vec3.subtract(direction, at, eye);
+      if (disableVerticalMovement) {
+        direction[1] = 0;
+      }
+      vec3.normalize(direction, direction);
       movementVec = vec3.create();
       vec3.multiply(movementVec, direction, vec3.fromValues(MOVEMENT_SPEED_FACTOR, MOVEMENT_SPEED_FACTOR, MOVEMENT_SPEED_FACTOR));
       vec3.add(eye, eye, movementVec);
       vec3.add(at, at, movementVec);
     },
-    moveBackward: () => {
+    moveBackward: (disableVerticalMovement = false) => {
       let direction = vec3.create();
       vec3.subtract(direction, eye, at);
+      if (disableVerticalMovement) {
+        direction[1] = 0;
+      }
+      vec3.normalize(direction, direction);
       movementVec = vec3.create();
       vec3.multiply(movementVec, direction, vec3.fromValues(MOVEMENT_SPEED_FACTOR, MOVEMENT_SPEED_FACTOR, MOVEMENT_SPEED_FACTOR));
       vec3.add(eye, eye, movementVec);
@@ -376,9 +384,9 @@ window.onload = function(){
 
     // check which keys that we care about are down
     if (keyMap['W'.charCodeAt(0)]){
-      camera.moveForward();
+      camera.moveForward(true);
     }else if (keyMap['S'.charCodeAt(0)]){
-      camera.moveBackward();
+      camera.moveBackward(true);
     }
 
     if (keyMap['A'.charCodeAt(0)]){
