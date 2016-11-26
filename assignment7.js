@@ -96,41 +96,32 @@ var createScenegraph = function(gl, program){
 //========== CAMERA ==========\\
 const createCamera = function(gl, program) {
   const CAMERA_PITCH_FACTOR = PERSPECTIVE_FAR_PLANE - PERSPECTIVE_NEAR_PLANE;
+  const MOVEMENT_SPEED_FACTOR = 0.05;
+  const STRAFE_FACTOR = MOVEMENT_SPEED_FACTOR;
+  const TURN_DEGREES = Math.PI / 75;
+
   let eye = vec3.fromValues(-HALF_GRID_SIZE - 1, 0.5, -HALF_GRID_SIZE - 1);
   let up = vec3.fromValues(0, 1, 0);
   let at = vec3.fromValues(0, 0.5, 0);
   let pitch = 0;
-  const MOVEMENT_SPEED_FACTOR = 0.05;
-  const STRAFE_FACTOR = MOVEMENT_SPEED_FACTOR;
-  const TURN_DEGREES = Math.PI / 75;
   return {
     apply: () => {
       let view = mat4.create();
 
-      // let rotationAxis = vec3.create();
-      // let directionNormal = vec3.create();
-      // let newUp = vec3.create();
-      // vec3.subtract(directionNormal, at, eye);
-      // vec3.normalize(directionNormal, directionNormal);
-      // vec3.cross(rotationAxis, directionNormal, up);
-      // console.log(rotationAxis, at);
-      //
-      // let q = quat.create();
-      // quat.setAxisAngle(q, rotationAxis, pitch);
-      //
-      // let atDistance = vec3.create();
-      // vec3.subtract(atDistance, eye, at);
-      // let newAt = vec3.create();
-      // vec3.add(newAt, at, atDistance);
-      // vec3.add(newAt, newAt, eye);
-      // vec3.transformQuat(newAt, newAt, q);
-      // vec3.subtract(newAt, newAt, eye);
-      // vec3.subtract(newAt, newAt, atDistance);
+      let rotationAxis = vec3.create();
+      let directionNormal = vec3.create();
+      vec3.subtract(directionNormal, eye, at);
+      vec3.normalize(directionNormal, directionNormal);
+      vec3.cross(rotationAxis, directionNormal, up);
 
-      mat4.lookAt(view, eye, at, up);
+      let q = quat.create();
+      quat.setAxisAngle(q, rotationAxis, pitch);
+      let newAt = vec3.create;
+      vec3.subtract(newAt, at, eye);
+      vec3.transformQuat(newAt, newAt, q);
+      vec3.add(newAt, newAt, eye);
 
-      // mat4.rotate(view, view, pitch, rotationAxis);
-
+      mat4.lookAt(view, eye, newAt, up);
       gl.uniformMatrix4fv(program.u_View, false, view);
     },
 
@@ -198,36 +189,17 @@ const createCamera = function(gl, program) {
     },
 
     tiltUp: () => {
-      let rotationAxis = vec3.create();
-      let directionNormal = vec3.create();
-      let newUp = vec3.create();
-      vec3.subtract(directionNormal, at, eye);
-      vec3.normalize(directionNormal, directionNormal);
-      vec3.cross(rotationAxis, directionNormal, up);
-
-      let q = quat.create();
-      quat.setAxisAngle(q, rotationAxis, TURN_DEGREES);
-
-      vec3.subtract(at, at, eye);
-      vec3.transformQuat(at, at, q);
-      vec3.add(at, at, eye);
-
-      // pitch -= TURN_DEGREES;
+      let newPitch = pitch - TURN_DEGREES;
+      if (newPitch > -Math.PI/2) {
+        pitch = newPitch;
+      }
 
     },
     tiltDown: () => {
-      let rotationAxis = vec3.create();
-      let directionNormal = vec3.create();
-      vec3.subtract(directionNormal, eye, at);
-      vec3.normalize(directionNormal, directionNormal);
-      vec3.cross(rotationAxis, directionNormal, up);
-
-      let q = quat.create();
-      quat.setAxisAngle(q, rotationAxis, TURN_DEGREES);
-
-      vec3.subtract(at, at, eye);
-      vec3.transformQuat(at, at, q);
-      vec3.add(at, at, eye);
+      let newPitch = pitch + TURN_DEGREES;
+      if (newPitch < Math.PI/2) {
+        pitch = newPitch;
+      }
     },
 
     moveUp: () => {
