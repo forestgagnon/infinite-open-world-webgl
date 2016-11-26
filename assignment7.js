@@ -99,13 +99,38 @@ const createCamera = function(gl, program) {
   let eye = vec3.fromValues(-HALF_GRID_SIZE - 1, 0.5, -HALF_GRID_SIZE - 1);
   let up = vec3.fromValues(0, 1, 0);
   let at = vec3.fromValues(0, 0.5, 0);
+  let pitch = 0;
   const MOVEMENT_SPEED_FACTOR = 0.005;
-  const STRAFE_FACTOR = MOVEMENT_SPEED_FACTOR * 0.75;
+  const STRAFE_FACTOR = MOVEMENT_SPEED_FACTOR * 10;
   const TURN_DEGREES = Math.PI / 75;
   return {
     apply: () => {
       let view = mat4.create();
+
+      // let rotationAxis = vec3.create();
+      // let directionNormal = vec3.create();
+      // let newUp = vec3.create();
+      // vec3.subtract(directionNormal, at, eye);
+      // vec3.normalize(directionNormal, directionNormal);
+      // vec3.cross(rotationAxis, directionNormal, up);
+      // console.log(rotationAxis, at);
+      //
+      // let q = quat.create();
+      // quat.setAxisAngle(q, rotationAxis, pitch);
+      //
+      // let atDistance = vec3.create();
+      // vec3.subtract(atDistance, eye, at);
+      // let newAt = vec3.create();
+      // vec3.add(newAt, at, atDistance);
+      // vec3.add(newAt, newAt, eye);
+      // vec3.transformQuat(newAt, newAt, q);
+      // vec3.subtract(newAt, newAt, eye);
+      // vec3.subtract(newAt, newAt, atDistance);
+
       mat4.lookAt(view, eye, at, up);
+
+      // mat4.rotate(view, view, pitch, rotationAxis);
+
       gl.uniformMatrix4fv(program.u_View, false, view);
     },
 
@@ -127,25 +152,31 @@ const createCamera = function(gl, program) {
     },
 
     strafeRight: () => {
-      let direction = vec3.create();
-      vec3.subtract(direction, at, eye);
-      let originalX = direction[0];
-      direction[0] = -direction[2];
-      direction[2] = originalX;
-      movementVec = vec3.create();
-      vec3.multiply(movementVec, direction, vec3.fromValues(STRAFE_FACTOR, 0, STRAFE_FACTOR));
+      let strafeAxis = vec3.create();
+      let directionNormal = vec3.create();
+      vec3.subtract(directionNormal, at, eye);
+      directionNormal[1] = 0; //don't care about y values
+      vec3.normalize(directionNormal, directionNormal);
+      vec3.cross(strafeAxis, directionNormal, up);
+
+      let movementVec = vec3.create();
+      vec3.add(movementVec, movementVec, strafeAxis)
+      vec3.multiply(movementVec, movementVec, vec3.fromValues(STRAFE_FACTOR, 0, STRAFE_FACTOR));
       vec3.add(eye, eye, movementVec);
       vec3.add(at, at, movementVec);
     },
 
     strafeLeft: () => {
-      let direction = vec3.create();
-      vec3.subtract(direction, at, eye);
-      let originalX = direction[0];
-      direction[0] = direction[2];
-      direction[2] = -originalX;
-      movementVec = vec3.create();
-      vec3.multiply(movementVec, direction, vec3.fromValues(STRAFE_FACTOR, 0, STRAFE_FACTOR));
+      let strafeAxis = vec3.create();
+      let directionNormal = vec3.create();
+      vec3.subtract(directionNormal, at, eye);
+      directionNormal[1] = 0; //don't care about y values
+      vec3.normalize(directionNormal, directionNormal);
+      vec3.cross(strafeAxis, directionNormal, up);
+
+      let movementVec = vec3.create();
+      vec3.add(movementVec, movementVec, strafeAxis)
+      vec3.multiply(movementVec, movementVec, vec3.fromValues(-STRAFE_FACTOR, 0, -STRAFE_FACTOR));
       vec3.add(eye, eye, movementVec);
       vec3.add(at, at, movementVec);
     },
@@ -159,21 +190,45 @@ const createCamera = function(gl, program) {
     },
 
     tiltUp: () => {
-      movementVec = vec3.fromValues(0, MOVEMENT_SPEED_FACTOR*CAMERA_PITCH_FACTOR, 0)
-      vec3.add(at, at, movementVec);
+      let rotationAxis = vec3.create();
+      let directionNormal = vec3.create();
+      let newUp = vec3.create();
+      vec3.subtract(directionNormal, at, eye);
+      vec3.normalize(directionNormal, directionNormal);
+      vec3.cross(rotationAxis, directionNormal, up);
+
+      let q = quat.create();
+      quat.setAxisAngle(q, rotationAxis, TURN_DEGREES);
+
+      vec3.subtract(at, at, eye);
+      vec3.transformQuat(at, at, q);
+      vec3.add(at, at, eye);
+
+      // pitch -= TURN_DEGREES;
+
     },
     tiltDown: () => {
-      movementVec = vec3.fromValues(0, MOVEMENT_SPEED_FACTOR*CAMERA_PITCH_FACTOR, 0)
-      vec3.subtract(at, at, movementVec);
+      let rotationAxis = vec3.create();
+      let directionNormal = vec3.create();
+      vec3.subtract(directionNormal, eye, at);
+      vec3.normalize(directionNormal, directionNormal);
+      vec3.cross(rotationAxis, directionNormal, up);
+
+      let q = quat.create();
+      quat.setAxisAngle(q, rotationAxis, TURN_DEGREES);
+
+      vec3.subtract(at, at, eye);
+      vec3.transformQuat(at, at, q);
+      vec3.add(at, at, eye);
     },
 
     moveUp: () => {
-      movementVec = vec3.fromValues(0, 15*MOVEMENT_SPEED_FACTOR, 0)
+      movementVec = vec3.fromValues(0, 15*MOVEMENT_SPEED_FACTOR, 0);
       vec3.add(eye, eye, movementVec);
       vec3.add(at, at, movementVec);
     },
     moveDown: () => {
-      movementVec = vec3.fromValues(0, 15*MOVEMENT_SPEED_FACTOR, 0)
+      movementVec = vec3.fromValues(0, 15*MOVEMENT_SPEED_FACTOR, 0);
       vec3.subtract(eye, eye, movementVec);
       vec3.subtract(at, at, movementVec);
     }
@@ -283,7 +338,7 @@ window.onload = function(){
 
   let canvas = document.getElementById('canvas');
   canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight - document.getElementById('description').getBoundingClientRect().height - 20;
+  canvas.height = window.innerHeight - document.getElementById('description').getBoundingClientRect().height - 50;
   let gl;
   // catch the error from creating the context since this has nothing to do with the code
   try{
