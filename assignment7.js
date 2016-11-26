@@ -42,6 +42,8 @@ const GRID_SIZE = 32;
 const HALF_GRID_SIZE = GRID_SIZE / 2; //don't compute this everywhere
 const PERSPECTIVE_NEAR_PLANE = 0.1;
 const PERSPECTIVE_FAR_PLANE = 100;
+const TURN_DEGREES = Math.PI / 75;
+const MOUSE_SENSITIVITY = 0.00025;
 
 var createScenegraph = function(gl, program){
   let stack = [];
@@ -98,7 +100,6 @@ const createCamera = function(gl, program) {
   const CAMERA_PITCH_FACTOR = PERSPECTIVE_FAR_PLANE - PERSPECTIVE_NEAR_PLANE;
   const MOVEMENT_SPEED_FACTOR = 0.05;
   const STRAFE_FACTOR = MOVEMENT_SPEED_FACTOR;
-  const TURN_DEGREES = Math.PI / 75;
 
   let eye = vec3.fromValues(-HALF_GRID_SIZE - 1, 0.5, -HALF_GRID_SIZE - 1);
   let up = vec3.fromValues(0, 1, 0);
@@ -180,26 +181,25 @@ const createCamera = function(gl, program) {
       vec3.add(at, at, movementVec);
     },
 
-    turnRight: () => {
-      vec3.rotateY(at, at, eye, -TURN_DEGREES);
+    turn: (radians) => {
+      vec3.rotateY(at, at, eye, radians);
     },
 
-    turnLeft: () => {
-      vec3.rotateY(at, at, eye, TURN_DEGREES);
-    },
-
-    tiltUp: () => {
-      let newPitch = pitch - TURN_DEGREES;
-      if (newPitch > -Math.PI/2) {
-        pitch = newPitch;
+    tilt: (radians) => {
+      if (radians < 0) {
+        let newPitch = pitch + radians;
+        if (newPitch > -Math.PI/2) {
+          pitch = newPitch;
+        }
+      }
+      else if (radians > 0) {
+        let newPitch = pitch + radians;
+        if (newPitch < Math.PI/2) {
+          pitch = newPitch;
+        }
       }
 
-    },
-    tiltDown: () => {
-      let newPitch = pitch + TURN_DEGREES;
-      if (newPitch < Math.PI/2) {
-        pitch = newPitch;
-      }
+
     },
 
     moveUp: () => {
@@ -343,6 +343,10 @@ window.onload = function(){
 
 
   let keyMap = {};
+  let mouseMovementInfo = {
+    turnRadians: 0,
+    tiltRadians: 0
+  };
 
   window.onkeydown = function(e){
       keyMap[e.which] = true;
@@ -352,7 +356,36 @@ window.onload = function(){
        keyMap[e.which] = false;
   }
 
+  const handleMouseMove = (e) => {
+    if (e.movementX) {
+      mouseMovementInfo.turnRadians -= Math.PI * e.movementX * MOUSE_SENSITIVITY;
+    }
+    if (e.movementY) {
+      mouseMovementInfo.tiltRadians += Math.PI * e.movementY * MOUSE_SENSITIVITY;
+    }
+  };
+
+  document.addEventListener('pointerlockchange', (e) => {
+    if (document.pointerLockElement === canvas) {
+      document.addEventListener("mousemove", handleMouseMove);
+    }
+    else {
+      document.removeEventListener("mousemove", handleMouseMove);
+    }
+  });
+
+  canvas.onclick = canvas.requestPointerLock;
+
   let render = function(){
+
+    if (mouseMovementInfo.turnRadians !== 0) {
+      camera.turn(mouseMovementInfo.turnRadians);
+      mouseMovementInfo.turnRadians = 0;
+    }
+    if (mouseMovementInfo.tiltRadians !== 0) {
+      camera.tilt(mouseMovementInfo.tiltRadians);
+      mouseMovementInfo.tiltRadians = 0;
+    }
 
     // check which keys that we care about are down
     if (keyMap['W'.charCodeAt(0)]){
@@ -368,15 +401,15 @@ window.onload = function(){
     }
 
     if(keyMap[38]) {
-      camera.tiltUp();
+      camera.tilt(-TURN_DEGREES);
     } else if(keyMap[40]) {
-      camera.tiltDown();
+      camera.tilt(TURN_DEGREES);
     }
 
     if(keyMap[37]) {
-      camera.turnLeft();
+      camera.turn(TURN_DEGREES);
     } else if(keyMap[39]) {
-      camera.turnRight();
+      camera.turn(-TURN_DEGREES);
     }
 
     if(keyMap['R'.charCodeAt(0)]) {
