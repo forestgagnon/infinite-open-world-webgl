@@ -28,6 +28,13 @@ function rgbToFloats(r, g, b) {
   return { r: r/255, g: g/255, b: b/255 };
 }
 
+const MAZE_CONSTANTS = {
+  OPEN: "OPEN",
+  WALL: "WALL",
+  START: "START",
+  END: "END"
+};
+
 //========== Color pallete ==========\\
 const DARK_RED = rgbToFloats(240, 59, 32);
 const BURNT_ORANGE = rgbToFloats(254, 178, 76);
@@ -44,6 +51,53 @@ const PERSPECTIVE_NEAR_PLANE = 0.1;
 const PERSPECTIVE_FAR_PLANE = 100;
 const TURN_DEGREES = Math.PI / 75;
 const MOUSE_SENSITIVITY = 0.00025;
+const BLOCKSIZE = 2.0;
+
+function buildMaze(size) {
+  let maze = [];
+  let wallsToExplore = [];
+  for(let row = 0; row < size; row++) {
+    maze[row] = [];
+    for(let col = 0; col < size; col++) {
+      maze[row][col] = MAZE_CONSTANTS.WALL;
+    }
+  }
+
+  let initCellRow = getRandomInt(0, Math.floor(size/2)) * 2 + 1;
+  let initCellCol = getRandomInt(0, Math.floor(size/2)) * 2 + 1;
+
+  maze[initCellRow][initCellCol] = MAZE_CONSTANTS.START;
+  wallsToExplore.push({ wallPos: [initCellRow - 1, initCellCol], nextCell: [initCellRow - 2, initCellCol] });
+  wallsToExplore.push({ wallPos: [initCellRow + 1, initCellCol], nextCell: [initCellRow + 2, initCellCol] });
+  wallsToExplore.push({ wallPos: [initCellRow, initCellCol + 1], nextCell: [initCellRow, initCellCol + 2] });
+  wallsToExplore.push({ wallPos: [initCellRow, initCellCol - 1], nextCell: [initCellRow, initCellCol - 2] });
+
+  let lastDrawnCell = [initCellRow, initCellCol];
+
+  while(wallsToExplore.length > 0) {
+    const wallIndex = getRandomInt(0, wallsToExplore.length);
+    let wall = wallsToExplore[wallIndex];
+    wallsToExplore.splice(wallIndex, 1);
+    if(wall.nextCell[0] >= 0 && wall.nextCell[0] < size && wall.nextCell[1] >= 0 && wall.nextCell[1] < size &&
+      maze[wall.nextCell[0]][wall.nextCell[1]] === MAZE_CONSTANTS.WALL) {
+
+      maze[wall.nextCell[0]][wall.nextCell[1]] = MAZE_CONSTANTS.OPEN;
+      lastDrawnCell = [wall.nextCell[0], wall.nextCell[1]];
+
+      wallsToExplore.push({ wallPos: [wall.nextCell[0] - 1, wall.nextCell[1]], nextCell: [wall.nextCell[0] - 2, wall.nextCell[1]] });
+      wallsToExplore.push({ wallPos: [wall.nextCell[0] + 1, wall.nextCell[1]], nextCell: [wall.nextCell[0] + 2, wall.nextCell[1]] });
+      wallsToExplore.push({ wallPos: [wall.nextCell[0], wall.nextCell[1] - 1], nextCell: [wall.nextCell[0], wall.nextCell[1] - 2] });
+      wallsToExplore.push({ wallPos: [wall.nextCell[0], wall.nextCell[1] + 1], nextCell: [wall.nextCell[0], wall.nextCell[1] + 2] });
+
+      maze[wall.wallPos[0]][wall.wallPos[1]] = MAZE_CONSTANTS.OPEN;
+
+    }
+  }
+
+  maze[lastDrawnCell[0]][lastDrawnCell[1]] = MAZE_CONSTANTS.END;
+
+  return { maze: maze, initRow: initCellRow, initCol: initCellCol };
+}
 
 var createScenegraph = function(gl, program){
   let stack = [];
@@ -198,8 +252,6 @@ const createCamera = function(gl, program) {
           pitch = newPitch;
         }
       }
-
-
     },
 
     moveUp: () => {
@@ -222,7 +274,7 @@ function createGrid(gl, program) {
   gl.enableVertexAttribArray(program.a_Color);
 
   let grid = [];
-  for (let i = -HALF_GRID_SIZE; i <= HALF_GRID_SIZE; i += 1.0) {
+  for (let i = -HALF_GRID_SIZE; i <= HALF_GRID_SIZE; i += BLOCKSIZE) {
     grid.push(
       i, 0.0, -HALF_GRID_SIZE, 1.0, 1.0, 1.0,
       i, 0.0, HALF_GRID_SIZE, 1.0, 1.0, 1.0,
@@ -248,6 +300,71 @@ function createGrid(gl, program) {
     gl.lineWidth(originalWidth);
   }
 }
+
+function createWall(gl, program) {
+  const WALL_COLOR = [240/255, 59/255, 32/255];
+  let wall = {
+    vertices : new Float32Array([
+          BLOCKSIZE,  BLOCKSIZE,  BLOCKSIZE,
+          0.0,  BLOCKSIZE,  BLOCKSIZE,
+          0.0,  0.0,  BLOCKSIZE,
+          BLOCKSIZE, 0.0,  BLOCKSIZE,
+
+          BLOCKSIZE,  BLOCKSIZE,  0.0,
+          0.0,  BLOCKSIZE,  0.0,
+          0.0,  0.0,  0.0,
+          BLOCKSIZE,  0.0,  0.0
+    ]),
+    colors: new Float32Array([
+      WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2],
+      WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2],
+      WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2],
+      WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2],
+
+      WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2],
+      WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2],
+      WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2],
+      WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2]
+    ]),
+
+    indices: new Uint8Array([
+       0,1,2,  0,2,3, // front face
+       0,7,4,  0,3,7,   // right face
+       1,5,6,  1,6,2, // left face
+      //  0,4,5,  0,5,1, // top face
+      //  3,2,6,  3,6,7, // bottom face
+       4,7,6,  4,6,5 // back face
+
+    ]),
+    dimensions: 3,
+    numPoints: 8
+  };
+  wall.vertexBuffer = gl.createBuffer();
+  wall.colorBuffer = gl.createBuffer();
+  wall.indexBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, wall.vertexBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, wall.vertices, gl.STATIC_DRAW);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, wall.colorBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, wall.colors, gl.STATIC_DRAW);
+
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wall.indexBuffer);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, wall.indices, gl.STATIC_DRAW);
+
+  return () => {
+    gl.bindBuffer(gl.ARRAY_BUFFER, wall.vertexBuffer);
+    // associate it with our position attribute
+    gl.vertexAttribPointer(program.a_Position, wall.dimensions, gl.FLOAT, false, 0,0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, wall.colorBuffer);
+    // associate it with our position attribute
+    gl.vertexAttribPointer(program.a_Color, wall.dimensions, gl.FLOAT, false, 0,0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wall.indexBuffer);
+    gl.drawElements(gl.TRIANGLES, wall.indices.length, gl.UNSIGNED_BYTE, 0);
+  };
+}
+
 
 function createCube(gl, program) {
   //Structure borrowed from Prof. Andrews' color cube code
@@ -376,6 +493,10 @@ window.onload = function(){
 
   canvas.onclick = canvas.requestPointerLock;
 
+  let grid = createGrid(gl, program);
+  let wall = createWall(gl, program);
+  let mazeObject = buildMaze(GRID_SIZE);
+
   let render = function(){
 
     if (mouseMovementInfo.turnRadians !== 0) {
@@ -432,10 +553,27 @@ window.onload = function(){
 
     //Initialize scenegraph and drawing functions
     let rootNode = createScenegraph(gl, program);
-    let grid = createGrid(gl, program);
 
     //Place grid
     let gridNode = rootNode.add("shape", grid);
+
+
+    let mazeTransform = mat4.create();
+    mat4.translate(mazeTransform, mazeTransform, vec3.fromValues(-HALF_GRID_SIZE, 0, -HALF_GRID_SIZE));
+    let mazeNode = rootNode.add('transformation', mazeTransform)
+
+    for (let row = 0; row < mazeObject.maze.length; row++) {
+      for (let col = 0; col < mazeObject.maze.length; col++) {
+        let translate = mat4.create();
+        mat4.translate(translate, translate, vec3.fromValues(row * BLOCKSIZE, 0, col*BLOCKSIZE));
+        let transformNode = mazeNode.add('transformation', translate);
+        switch (mazeObject.maze[row][col]) {
+          case MAZE_CONSTANTS.WALL:
+            transformNode.add('shape', wall);
+            break;
+        }
+      }
+    }
 
     rootNode.apply();
 
@@ -448,7 +586,7 @@ window.onload = function(){
 
 //========== UTILS ==========\\
 function getRandomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1) + min);
+  return Math.floor(Math.random() * (max - min) + min);
 }
 
 function getRandom(min, max) {
