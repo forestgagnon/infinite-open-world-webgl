@@ -304,7 +304,6 @@ function createGrid(gl, program) {
 }
 
 function createWall(gl, program) {
-  const WALL_COLOR = [240/255, 59/255, 32/255];
   let wall = {
     vertices : vertices = new Float32Array([
       BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, 0,0, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE, // front face
@@ -364,8 +363,7 @@ function createWall(gl, program) {
 }
 
 function createFloor(gl, program) {
-  const WALL_COLOR = [240/255, 59/255, 32/255];
-  let wall = {
+  let floor = {
     vertices : vertices = new Float32Array([
       BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, 0,0, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE, // front face
       BLOCKSIZE, BLOCKSIZE, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE,  BLOCKSIZE,0,0,  BLOCKSIZE, BLOCKSIZE,0, // right face
@@ -396,36 +394,35 @@ function createFloor(gl, program) {
     dimensions: 3,
     numPoints: 8
   };
-  wall.vertexBuffer = gl.createBuffer();
-  wall.colorBuffer = gl.createBuffer();
-  wall.indexBuffer = gl.createBuffer();
-  wall.textureBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, wall.vertexBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, wall.vertices, gl.STATIC_DRAW);
+  floor.vertexBuffer = gl.createBuffer();
+  floor.colorBuffer = gl.createBuffer();
+  floor.indexBuffer = gl.createBuffer();
+  floor.textureBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, floor.vertexBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, floor.vertices, gl.STATIC_DRAW);
 
-  gl.bindBuffer(gl.ARRAY_BUFFER, wall.textureBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, wall.textureCoordinates, gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, floor.textureBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, floor.textureCoordinates, gl.STATIC_DRAW);
 
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wall.indexBuffer);
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, wall.indices, gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, floor.indexBuffer);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, floor.indices, gl.STATIC_DRAW);
 
   return () => {
     gl.uniform1i(program.u_Sampler, 1);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, wall.vertexBuffer);
-    gl.vertexAttribPointer(program.a_Position, wall.dimensions, gl.FLOAT, false, 0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, floor.vertexBuffer);
+    gl.vertexAttribPointer(program.a_Position, floor.dimensions, gl.FLOAT, false, 0,0);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, wall.textureBuffer);
+    gl.bindBuffer(gl.ARRAY_BUFFER, floor.textureBuffer);
     gl.vertexAttribPointer(program.a_TexCoord, 2, gl.FLOAT, false, 0,0);
 
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wall.indexBuffer);
-    gl.drawElements(gl.TRIANGLES, wall.indices.length, gl.UNSIGNED_BYTE, 0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, floor.indexBuffer);
+    gl.drawElements(gl.TRIANGLES, floor.indices.length, gl.UNSIGNED_BYTE, 0);
   };
 }
 
 function createRoof(gl, program) {
-  const WALL_COLOR = [240/255, 59/255, 32/255];
-  let wall = {
+  let roof = {
     vertices : vertices = new Float32Array([
       BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, 0,0, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE, // front face
       BLOCKSIZE, BLOCKSIZE, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE,  BLOCKSIZE,0,0,  BLOCKSIZE, BLOCKSIZE,0, // right face
@@ -456,30 +453,30 @@ function createRoof(gl, program) {
     dimensions: 3,
     numPoints: 8
   };
-  wall.vertexBuffer = gl.createBuffer();
-  wall.colorBuffer = gl.createBuffer();
-  wall.indexBuffer = gl.createBuffer();
-  wall.textureBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, wall.vertexBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, wall.vertices, gl.STATIC_DRAW);
+  roof.vertexBuffer = gl.createBuffer();
+  roof.colorBuffer = gl.createBuffer();
+  roof.indexBuffer = gl.createBuffer();
+  roof.textureBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, roof.vertexBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, roof.vertices, gl.STATIC_DRAW);
 
-  gl.bindBuffer(gl.ARRAY_BUFFER, wall.textureBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, wall.textureCoordinates, gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, roof.textureBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, roof.textureCoordinates, gl.STATIC_DRAW);
 
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wall.indexBuffer);
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, wall.indices, gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, roof.indexBuffer);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, roof.indices, gl.STATIC_DRAW);
 
   return () => {
     gl.uniform1i(program.u_Sampler, 2);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, wall.vertexBuffer);
-    gl.vertexAttribPointer(program.a_Position, wall.dimensions, gl.FLOAT, false, 0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, roof.vertexBuffer);
+    gl.vertexAttribPointer(program.a_Position, roof.dimensions, gl.FLOAT, false, 0,0);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, wall.textureBuffer);
+    gl.bindBuffer(gl.ARRAY_BUFFER, roof.textureBuffer);
     gl.vertexAttribPointer(program.a_TexCoord, 2, gl.FLOAT, false, 0,0);
 
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wall.indexBuffer);
-    gl.drawElements(gl.TRIANGLES, wall.indices.length, gl.UNSIGNED_BYTE, 0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, roof.indexBuffer);
+    gl.drawElements(gl.TRIANGLES, roof.indices.length, gl.UNSIGNED_BYTE, 0);
   };
 }
 
