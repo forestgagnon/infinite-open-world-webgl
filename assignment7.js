@@ -5,23 +5,29 @@
 let vertexShader = `
 attribute vec4 a_Position;
 attribute vec4 a_Color;
+attribute vec2 a_TexCoord;
 
 uniform mat4 u_View;
 uniform mat4 u_Projection;
 uniform mat4 u_Transform;
 
 varying vec4 v_Color;
+varying vec2 v_TexCoord;
 
 void main(){
   v_Color = a_Color;
+  v_TexCoord = a_TexCoord;
   gl_Position = u_Projection * u_View * u_Transform * a_Position;
 }`;
 
 var fragmentShader = `
 precision mediump float;
+uniform sampler2D u_Sampler;
 varying vec4 v_Color;
+varying vec2 v_TexCoord;
 void main(){
-  gl_FragColor = v_Color;
+  // gl_FragColor = v_Color;
+  gl_FragColor = texture2D(u_Sampler, v_TexCoord);
 }`;
 
 function rgbToFloats(r, g, b) {
@@ -272,9 +278,6 @@ const createCamera = function(gl, program, eyeVector) {
 
 //========== DRAWING FUNCTION GENERATORS ==========\\
 function createGrid(gl, program) {
-  gl.enableVertexAttribArray(program.a_Position);
-  gl.enableVertexAttribArray(program.a_Color);
-
   let grid = [];
   for (let i = -HALF_GRID_SIZE; i <= HALF_GRID_SIZE; i += BLOCKSIZE) {
     grid.push(
@@ -329,6 +332,15 @@ function createWall(gl, program) {
       WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2]
     ]),
 
+    textureCoordinates : new Float32Array([
+      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // front face
+      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // right face
+      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // left face
+      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // top face
+      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // bottom face
+      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // back face
+    ]),
+
     indices: new Uint8Array([
        0,1,2,  0,2,3, // front face
        0,7,4,  0,3,7,   // right face
@@ -344,23 +356,30 @@ function createWall(gl, program) {
   wall.vertexBuffer = gl.createBuffer();
   wall.colorBuffer = gl.createBuffer();
   wall.indexBuffer = gl.createBuffer();
+  wall.textureBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, wall.vertexBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, wall.vertices, gl.STATIC_DRAW);
 
   gl.bindBuffer(gl.ARRAY_BUFFER, wall.colorBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, wall.colors, gl.STATIC_DRAW);
 
+  gl.bindBuffer(gl.ARRAY_BUFFER, wall.textureBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, wall.textureCoordinates, gl.STATIC_DRAW);
+
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wall.indexBuffer);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, wall.indices, gl.STATIC_DRAW);
 
   return () => {
+    gl.uniform1i(program.u_Sampler, 0);
+
     gl.bindBuffer(gl.ARRAY_BUFFER, wall.vertexBuffer);
-    // associate it with our position attribute
     gl.vertexAttribPointer(program.a_Position, wall.dimensions, gl.FLOAT, false, 0,0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, wall.colorBuffer);
-    // associate it with our position attribute
     gl.vertexAttribPointer(program.a_Color, wall.dimensions, gl.FLOAT, false, 0,0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, wall.textureBuffer);
+    gl.vertexAttribPointer(program.a_TexCoord, 2, gl.FLOAT, false, 0,0);
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wall.indexBuffer);
     gl.drawElements(gl.TRIANGLES, wall.indices.length, gl.UNSIGNED_BYTE, 0);
@@ -515,6 +534,8 @@ window.onload = function(){
 
   program.a_Position = gl.getAttribLocation(program, 'a_Position');
   program.a_Color = gl.getAttribLocation(program, 'a_Color');
+  program.a_TexCoord = gl.getAttribLocation(program, 'a_TexCoord');
+  program.u_Sampler = gl.getUniformLocation(program, 'u_Sampler');
   program.u_Projection = gl.getUniformLocation(program, 'u_Projection');
   program.u_View = gl.getUniformLocation(program, 'u_View');
 
@@ -555,10 +576,14 @@ window.onload = function(){
 
   canvas.onclick = canvas.requestPointerLock;
 
+  gl.enableVertexAttribArray(program.a_Position);
+  gl.enableVertexAttribArray(program.a_Color);
+  gl.enableVertexAttribArray(program.a_TexCoord);
+
   let mazeObject = buildMaze(GRID_SIZE);
   console.log(mazeObject);
   let camera = createCamera(gl, program, vec3.fromValues(mazeObject.initRow * BLOCKSIZE + BLOCKSIZE/2, 0.5, mazeObject.initCol * BLOCKSIZE + BLOCKSIZE/2));
-  let grid = createGrid(gl, program);
+  // let grid = createGrid(gl, program);
   let wall = createWall(gl, program);
   let openSquare = createOpenSquare(gl, program);
 
@@ -637,13 +662,13 @@ window.onload = function(){
             transformNode.add('shape', wall);
             break;
           case MAZE_CONSTANTS.OPEN:
-            transformNode.add('shape', openSquare);
+            // transformNode.add('shape', openSquare);
             break;
           case MAZE_CONSTANTS.START:
-            transformNode.add('shape', openSquare);
+            // transformNode.add('shape', openSquare);
             break;
           case MAZE_CONSTANTS.END:
-            transformNode.add('shape', openSquare);
+            // transformNode.add('shape', openSquare);
             break;
         }
       }
@@ -654,9 +679,38 @@ window.onload = function(){
     requestAnimationFrame(render);
   };
 
-  render();
+  Promise.all([ initializeTexture(gl, gl.TEXTURE0, 'rockfloorbig.jpg')])
+      .then(() => render())
+      .catch(function (error) {alert('Failed to load texture '+  error.message);});
 
 };
+
+function initializeTexture(gl, textureid, filename) {
+  //Borrowed from http://bl.ocks.org/ProfBlack/d65bc62402b50a8e46d67095eeaeb5f4
+  return new Promise(function(resolve, reject){
+    var texture = gl.createTexture();
+
+    var image = new Image();
+    image.onload = function(){
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
+      gl.activeTexture(textureid);
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
+      // gl.generateMipmap(gl.TEXTURE_2D);
+      resolve();
+    };
+
+
+    image.onerror = function(error){
+
+        reject(Error(filename));
+    }
+
+    image.src = filename;
+  });
+}
 
 //========== UTILS ==========\\
 function getRandomInt(min, max) {
