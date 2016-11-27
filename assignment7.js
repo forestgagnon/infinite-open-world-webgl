@@ -363,66 +363,123 @@ function createWall(gl, program) {
   };
 }
 
-function createOpenSquare(gl, program) {
-  let open = {
-    vertices : new Float32Array([
-          BLOCKSIZE,  BLOCKSIZE,  BLOCKSIZE,
-          0.0,  BLOCKSIZE,  BLOCKSIZE,
-          0.0,  0.0,  BLOCKSIZE,
-          BLOCKSIZE, 0.0,  BLOCKSIZE,
-
-          BLOCKSIZE,  BLOCKSIZE,  0.0,
-          0.0,  BLOCKSIZE,  0.0,
-          0.0,  0.0,  0.0,
-          BLOCKSIZE,  0.0,  0.0
+function createFloor(gl, program) {
+  const WALL_COLOR = [240/255, 59/255, 32/255];
+  let wall = {
+    vertices : vertices = new Float32Array([
+      BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, 0,0, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE, // front face
+      BLOCKSIZE, BLOCKSIZE, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE,  BLOCKSIZE,0,0,  BLOCKSIZE, BLOCKSIZE,0, // right face
+      BLOCKSIZE, BLOCKSIZE,0,  BLOCKSIZE,0,0, 0,0,0, 0, BLOCKSIZE,0, // back face
+     0, BLOCKSIZE,0, 0,0,0, 0,0, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, // left face
+      BLOCKSIZE, BLOCKSIZE, BLOCKSIZE,  BLOCKSIZE, BLOCKSIZE,0, 0, BLOCKSIZE,0, 0, BLOCKSIZE, BLOCKSIZE, // top face
+      BLOCKSIZE,0, BLOCKSIZE, 0,0, BLOCKSIZE, 0,0,0,  BLOCKSIZE,0,0, // bottom face
     ]),
-    colors: new Float32Array([
-      DARK_GREEN.r, DARK_GREEN.g, DARK_GREEN.b,
-      DARK_GREEN.r, DARK_GREEN.g, DARK_GREEN.b,
-      DARK_GREEN.r, DARK_GREEN.g, DARK_GREEN.b,
-      DARK_GREEN.r, DARK_GREEN.g, DARK_GREEN.b,
 
-      DARK_GREEN.r, DARK_GREEN.g, DARK_GREEN.b,
-      DARK_GREEN.r, DARK_GREEN.g, DARK_GREEN.b,
-      DARK_GREEN.r, DARK_GREEN.g, DARK_GREEN.b,
-      DARK_GREEN.r, DARK_GREEN.g, DARK_GREEN.b
+    textureCoordinates : new Float32Array([
+      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // front face
+      0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, BLOCKSIZE, BLOCKSIZE, // right face
+      0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, BLOCKSIZE, BLOCKSIZE,  // back face
+      0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, BLOCKSIZE, BLOCKSIZE, // left face
+      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // top face
+      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // bottom face
     ]),
 
     indices: new Uint8Array([
-      //  0,1,2,  0,2,3, // front face
-      //  0,7,4,  0,3,7,   // right face
-      //  1,5,6,  1,6,2, // left face
-       0,4,5,  0,5,1, // top face
-       3,2,6,  3,6,7, // bottom face
-      //  4,7,6,  4,6,5 // back face
+      // 0,1,2,  0,2,3, // front face
+      // 4,5,6,  4,6,7,   // right face
+    //  8,9,10, 8,10,11, // back face
+    //  12,13,14,  12,14,15, // left face
+    //  16,17,18, 16,18,19, // top face
+     20,21,22, 20,22,23 // bottom face
 
     ]),
     dimensions: 3,
     numPoints: 8
   };
-  open.vertexBuffer = gl.createBuffer();
-  open.colorBuffer = gl.createBuffer();
-  open.indexBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, open.vertexBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, open.vertices, gl.STATIC_DRAW);
+  wall.vertexBuffer = gl.createBuffer();
+  wall.colorBuffer = gl.createBuffer();
+  wall.indexBuffer = gl.createBuffer();
+  wall.textureBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, wall.vertexBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, wall.vertices, gl.STATIC_DRAW);
 
-  gl.bindBuffer(gl.ARRAY_BUFFER, open.colorBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, open.colors, gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, wall.textureBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, wall.textureCoordinates, gl.STATIC_DRAW);
 
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, open.indexBuffer);
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, open.indices, gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wall.indexBuffer);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, wall.indices, gl.STATIC_DRAW);
 
   return () => {
-    gl.bindBuffer(gl.ARRAY_BUFFER, open.vertexBuffer);
-    // associate it with our position attribute
-    gl.vertexAttribPointer(program.a_Position, open.dimensions, gl.FLOAT, false, 0,0);
+    gl.uniform1i(program.u_Sampler, 1);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, open.colorBuffer);
-    // associate it with our position attribute
-    gl.vertexAttribPointer(program.a_Color, open.dimensions, gl.FLOAT, false, 0,0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, wall.vertexBuffer);
+    gl.vertexAttribPointer(program.a_Position, wall.dimensions, gl.FLOAT, false, 0,0);
 
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, open.indexBuffer);
-    gl.drawElements(gl.TRIANGLES, open.indices.length, gl.UNSIGNED_BYTE, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, wall.textureBuffer);
+    gl.vertexAttribPointer(program.a_TexCoord, 2, gl.FLOAT, false, 0,0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wall.indexBuffer);
+    gl.drawElements(gl.TRIANGLES, wall.indices.length, gl.UNSIGNED_BYTE, 0);
+  };
+}
+
+function createRoof(gl, program) {
+  const WALL_COLOR = [240/255, 59/255, 32/255];
+  let wall = {
+    vertices : vertices = new Float32Array([
+      BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, 0,0, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE, // front face
+      BLOCKSIZE, BLOCKSIZE, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE,  BLOCKSIZE,0,0,  BLOCKSIZE, BLOCKSIZE,0, // right face
+      BLOCKSIZE, BLOCKSIZE,0,  BLOCKSIZE,0,0, 0,0,0, 0, BLOCKSIZE,0, // back face
+     0, BLOCKSIZE,0, 0,0,0, 0,0, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, // left face
+      BLOCKSIZE, BLOCKSIZE, BLOCKSIZE,  BLOCKSIZE, BLOCKSIZE,0, 0, BLOCKSIZE,0, 0, BLOCKSIZE, BLOCKSIZE, // top face
+      BLOCKSIZE,0, BLOCKSIZE, 0,0, BLOCKSIZE, 0,0,0,  BLOCKSIZE,0,0, // bottom face
+    ]),
+
+    textureCoordinates : new Float32Array([
+      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // front face
+      0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, BLOCKSIZE, BLOCKSIZE, // right face
+      0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, BLOCKSIZE, BLOCKSIZE,  // back face
+      0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, BLOCKSIZE, BLOCKSIZE, // left face
+      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // top face
+      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // bottom face
+    ]),
+
+    indices: new Uint8Array([
+      // 0,1,2,  0,2,3, // front face
+      // 4,5,6,  4,6,7,   // right face
+    //  8,9,10, 8,10,11, // back face
+    //  12,13,14,  12,14,15, // left face
+     16,17,18, 16,18,19, // top face
+    //  20,21,22w, 20,22,23 // bottom face
+
+    ]),
+    dimensions: 3,
+    numPoints: 8
+  };
+  wall.vertexBuffer = gl.createBuffer();
+  wall.colorBuffer = gl.createBuffer();
+  wall.indexBuffer = gl.createBuffer();
+  wall.textureBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, wall.vertexBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, wall.vertices, gl.STATIC_DRAW);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, wall.textureBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, wall.textureCoordinates, gl.STATIC_DRAW);
+
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wall.indexBuffer);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, wall.indices, gl.STATIC_DRAW);
+
+  return () => {
+    gl.uniform1i(program.u_Sampler, 2);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, wall.vertexBuffer);
+    gl.vertexAttribPointer(program.a_Position, wall.dimensions, gl.FLOAT, false, 0,0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, wall.textureBuffer);
+    gl.vertexAttribPointer(program.a_TexCoord, 2, gl.FLOAT, false, 0,0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, wall.indexBuffer);
+    gl.drawElements(gl.TRIANGLES, wall.indices.length, gl.UNSIGNED_BYTE, 0);
   };
 }
 
@@ -561,7 +618,8 @@ window.onload = function(){
   let camera = createCamera(gl, program, vec3.fromValues(mazeObject.initRow * BLOCKSIZE + BLOCKSIZE/2, 0.5, mazeObject.initCol * BLOCKSIZE + BLOCKSIZE/2));
   // let grid = createGrid(gl, program);
   let wall = createWall(gl, program);
-  let openSquare = createOpenSquare(gl, program);
+  let floor = createFloor(gl, program);
+  let roof = createRoof(gl, program);
 
   let render = function(){
 
@@ -638,13 +696,16 @@ window.onload = function(){
             transformNode.add('shape', wall);
             break;
           case MAZE_CONSTANTS.OPEN:
-            // transformNode.add('shape', openSquare);
+            transformNode.add('shape', floor);
+            transformNode.add('shape', roof);
             break;
           case MAZE_CONSTANTS.START:
-            // transformNode.add('shape', openSquare);
+            transformNode.add('shape', floor);
+            transformNode.add('shape', roof);
             break;
           case MAZE_CONSTANTS.END:
-            // transformNode.add('shape', openSquare);
+            transformNode.add('shape', floor);
+            transformNode.add('shape', roof);
             break;
         }
       }
@@ -655,9 +716,13 @@ window.onload = function(){
     requestAnimationFrame(render);
   };
 
-  Promise.all([ initializeTexture(gl, gl.TEXTURE0, 'rockfloorbig.jpg')])
-      .then(() => render())
-      .catch(function (error) {alert('Failed to load texture '+  error.message);});
+  Promise.all([
+    initializeTexture(gl, gl.TEXTURE0, 'rockfloorbig.jpg'),
+     initializeTexture(gl, gl.TEXTURE1, 'floor.png'),
+     initializeTexture(gl, gl.TEXTURE2, 'roof.jpg')
+  ])
+    .then(() => render())
+    .catch(function (error) {alert('Failed to load texture '+  error.message);});
 
 };
 
