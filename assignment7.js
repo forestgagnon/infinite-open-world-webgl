@@ -4,7 +4,6 @@
 
 let vertexShader = `
 attribute vec4 a_Position;
-attribute vec4 a_Color;
 attribute vec2 a_TexCoord;
 
 uniform mat4 u_View;
@@ -15,7 +14,6 @@ varying vec4 v_Color;
 varying vec2 v_TexCoord;
 
 void main(){
-  v_Color = a_Color;
   v_TexCoord = a_TexCoord;
   gl_Position = u_Projection * u_View * u_Transform * a_Position;
 }`;
@@ -23,7 +21,6 @@ void main(){
 var fragmentShader = `
 precision mediump float;
 uniform sampler2D u_Sampler;
-varying vec4 v_Color;
 varying vec2 v_TexCoord;
 void main(){
   // gl_FragColor = v_Color;
@@ -309,45 +306,31 @@ function createGrid(gl, program) {
 function createWall(gl, program) {
   const WALL_COLOR = [240/255, 59/255, 32/255];
   let wall = {
-    vertices : new Float32Array([
-          BLOCKSIZE,  BLOCKSIZE,  BLOCKSIZE,
-          0.0,  BLOCKSIZE,  BLOCKSIZE,
-          0.0,  0.0,  BLOCKSIZE,
-          BLOCKSIZE, 0.0,  BLOCKSIZE,
-
-          BLOCKSIZE,  BLOCKSIZE,  0.0,
-          0.0,  BLOCKSIZE,  0.0,
-          0.0,  0.0,  0.0,
-          BLOCKSIZE,  0.0,  0.0
-    ]),
-    colors: new Float32Array([
-      WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2],
-      WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2],
-      WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2],
-      WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2],
-
-      WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2],
-      WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2],
-      WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2],
-      WALL_COLOR[0], WALL_COLOR[1], WALL_COLOR[2]
+    vertices : vertices = new Float32Array([
+      BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, 0,0, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE, // front face
+      BLOCKSIZE, BLOCKSIZE, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE,  BLOCKSIZE,0,0,  BLOCKSIZE, BLOCKSIZE,0, // right face
+      BLOCKSIZE, BLOCKSIZE,0,  BLOCKSIZE,0,0, 0,0,0, 0, BLOCKSIZE,0, // back face
+     0, BLOCKSIZE,0, 0,0,0, 0,0, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, // left face
+      BLOCKSIZE, BLOCKSIZE, BLOCKSIZE,  BLOCKSIZE, BLOCKSIZE,0, 0, BLOCKSIZE,0, 0, BLOCKSIZE, BLOCKSIZE, // top face
+      BLOCKSIZE,0, BLOCKSIZE, 0,0, BLOCKSIZE, 0,0,0,  BLOCKSIZE,0,0, // bottom face
     ]),
 
     textureCoordinates : new Float32Array([
       BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // front face
-      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // right face
-      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // left face
+      0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, BLOCKSIZE, BLOCKSIZE, // right face
+      0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, BLOCKSIZE, BLOCKSIZE,  // back face
+      0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, BLOCKSIZE, BLOCKSIZE, // left face
       BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // top face
       BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // bottom face
-      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // back face
     ]),
 
     indices: new Uint8Array([
-       0,1,2,  0,2,3, // front face
-       0,7,4,  0,3,7,   // right face
-       1,5,6,  1,6,2, // left face
-      //  0,4,5,  0,5,1, // top face
-      //  3,2,6,  3,6,7, // bottom face
-       4,7,6,  4,6,5 // back face
+      0,1,2,  0,2,3, // front face
+      4,5,6,  4,6,7,   // right face
+     8,9,10, 8,10,11, // back face
+     12,13,14,  12,14,15, // left face
+    //  16,17,18, 16,18,19, // top face
+    //  20,21,22, 20,22,23 // bottom face
 
     ]),
     dimensions: 3,
@@ -360,9 +343,6 @@ function createWall(gl, program) {
   gl.bindBuffer(gl.ARRAY_BUFFER, wall.vertexBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, wall.vertices, gl.STATIC_DRAW);
 
-  gl.bindBuffer(gl.ARRAY_BUFFER, wall.colorBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, wall.colors, gl.STATIC_DRAW);
-
   gl.bindBuffer(gl.ARRAY_BUFFER, wall.textureBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, wall.textureCoordinates, gl.STATIC_DRAW);
 
@@ -374,9 +354,6 @@ function createWall(gl, program) {
 
     gl.bindBuffer(gl.ARRAY_BUFFER, wall.vertexBuffer);
     gl.vertexAttribPointer(program.a_Position, wall.dimensions, gl.FLOAT, false, 0,0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, wall.colorBuffer);
-    gl.vertexAttribPointer(program.a_Color, wall.dimensions, gl.FLOAT, false, 0,0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, wall.textureBuffer);
     gl.vertexAttribPointer(program.a_TexCoord, 2, gl.FLOAT, false, 0,0);
@@ -577,7 +554,6 @@ window.onload = function(){
   canvas.onclick = canvas.requestPointerLock;
 
   gl.enableVertexAttribArray(program.a_Position);
-  gl.enableVertexAttribArray(program.a_Color);
   gl.enableVertexAttribArray(program.a_TexCoord);
 
   let mazeObject = buildMaze(GRID_SIZE);
