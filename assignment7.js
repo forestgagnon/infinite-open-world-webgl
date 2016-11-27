@@ -1,5 +1,6 @@
 //========== Forest Gagnon - CS461 HW07 - assignment7.js ==========\\
-/* Extra features:
+/* Extra features: Mouse look, Camera with proper pitch (hooray!), anisotropic filtering for the mipmap,
+*
 */
 
 let vertexShader = `
