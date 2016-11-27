@@ -104,7 +104,7 @@ function buildMaze(size) {
   return { maze: maze, initRow: initCellRow, initCol: initCellCol };
 }
 
-var createScenegraph = function(gl, program){
+const createScenegraph = function(gl, program){
   let stack = [];
   let currentMatrix = mat4.create();
   let u_Transform = gl.getUniformLocation(program, 'u_Transform');
@@ -261,12 +261,12 @@ const createCamera = function(gl, program, eyeVector) {
     },
 
     moveUp: () => {
-      movementVec = vec3.fromValues(0, 15*MOVEMENT_SPEED_FACTOR, 0);
+      movementVec = vec3.fromValues(0, MOVEMENT_SPEED_FACTOR, 0);
       vec3.add(eye, eye, movementVec);
       vec3.add(at, at, movementVec);
     },
     moveDown: () => {
-      movementVec = vec3.fromValues(0, 15*MOVEMENT_SPEED_FACTOR, 0);
+      movementVec = vec3.fromValues(0, MOVEMENT_SPEED_FACTOR, 0);
       vec3.subtract(eye, eye, movementVec);
       vec3.subtract(at, at, movementVec);
     }
