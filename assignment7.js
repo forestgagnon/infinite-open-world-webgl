@@ -52,6 +52,7 @@ const PERSPECTIVE_FAR_PLANE = 100;
 const TURN_DEGREES = Math.PI / 75;
 const MOUSE_SENSITIVITY = 0.00025;
 const BLOCKSIZE = 2.0;
+const NOCLIP = false;
 
 function buildMaze(size) {
   let maze = [];
@@ -150,14 +151,15 @@ var createScenegraph = function(gl, program){
 };
 
 //========== CAMERA ==========\\
-const createCamera = function(gl, program) {
+const createCamera = function(gl, program, eyeVector) {
   const CAMERA_PITCH_FACTOR = PERSPECTIVE_FAR_PLANE - PERSPECTIVE_NEAR_PLANE;
   const MOVEMENT_SPEED_FACTOR = 0.05;
   const STRAFE_FACTOR = MOVEMENT_SPEED_FACTOR;
 
-  let eye = vec3.fromValues(-HALF_GRID_SIZE - 1, 0.5, -HALF_GRID_SIZE - 1);
+  let eye = eyeVector;
   let up = vec3.fromValues(0, 1, 0);
-  let at = vec3.fromValues(0, 0.5, 0);
+  let at = vec3.create();
+  vec3.add(at, eye, vec3.fromValues(10, 0, 10));
   let pitch = 0;
   return {
     apply: () => {
@@ -242,13 +244,13 @@ const createCamera = function(gl, program) {
     tilt: (radians) => {
       if (radians < 0) {
         let newPitch = pitch + radians;
-        if (newPitch > -Math.PI/2) {
+        if (newPitch > -Math.PI/2 + Math.PI/16) {
           pitch = newPitch;
         }
       }
       else if (radians > 0) {
         let newPitch = pitch + radians;
-        if (newPitch < Math.PI/2) {
+        if (newPitch < Math.PI/2 - Math.PI/16) {
           pitch = newPitch;
         }
       }
@@ -365,6 +367,69 @@ function createWall(gl, program) {
   };
 }
 
+function createOpenSquare(gl, program) {
+  let open = {
+    vertices : new Float32Array([
+          BLOCKSIZE,  BLOCKSIZE,  BLOCKSIZE,
+          0.0,  BLOCKSIZE,  BLOCKSIZE,
+          0.0,  0.0,  BLOCKSIZE,
+          BLOCKSIZE, 0.0,  BLOCKSIZE,
+
+          BLOCKSIZE,  BLOCKSIZE,  0.0,
+          0.0,  BLOCKSIZE,  0.0,
+          0.0,  0.0,  0.0,
+          BLOCKSIZE,  0.0,  0.0
+    ]),
+    colors: new Float32Array([
+      DARK_GREEN.r, DARK_GREEN.g, DARK_GREEN.b,
+      DARK_GREEN.r, DARK_GREEN.g, DARK_GREEN.b,
+      DARK_GREEN.r, DARK_GREEN.g, DARK_GREEN.b,
+      DARK_GREEN.r, DARK_GREEN.g, DARK_GREEN.b,
+
+      DARK_GREEN.r, DARK_GREEN.g, DARK_GREEN.b,
+      DARK_GREEN.r, DARK_GREEN.g, DARK_GREEN.b,
+      DARK_GREEN.r, DARK_GREEN.g, DARK_GREEN.b,
+      DARK_GREEN.r, DARK_GREEN.g, DARK_GREEN.b
+    ]),
+
+    indices: new Uint8Array([
+      //  0,1,2,  0,2,3, // front face
+      //  0,7,4,  0,3,7,   // right face
+      //  1,5,6,  1,6,2, // left face
+       0,4,5,  0,5,1, // top face
+       3,2,6,  3,6,7, // bottom face
+      //  4,7,6,  4,6,5 // back face
+
+    ]),
+    dimensions: 3,
+    numPoints: 8
+  };
+  open.vertexBuffer = gl.createBuffer();
+  open.colorBuffer = gl.createBuffer();
+  open.indexBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, open.vertexBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, open.vertices, gl.STATIC_DRAW);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, open.colorBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, open.colors, gl.STATIC_DRAW);
+
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, open.indexBuffer);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, open.indices, gl.STATIC_DRAW);
+
+  return () => {
+    gl.bindBuffer(gl.ARRAY_BUFFER, open.vertexBuffer);
+    // associate it with our position attribute
+    gl.vertexAttribPointer(program.a_Position, open.dimensions, gl.FLOAT, false, 0,0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, open.colorBuffer);
+    // associate it with our position attribute
+    gl.vertexAttribPointer(program.a_Color, open.dimensions, gl.FLOAT, false, 0,0);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, open.indexBuffer);
+    gl.drawElements(gl.TRIANGLES, open.indices.length, gl.UNSIGNED_BYTE, 0);
+  };
+}
+
 
 function createCube(gl, program) {
   //Structure borrowed from Prof. Andrews' color cube code
@@ -456,9 +521,6 @@ window.onload = function(){
   gl.enable(gl.DEPTH_TEST);
   gl.clearColor(0,0,0,1);
 
-  let camera = createCamera(gl, program);
-
-
   let keyMap = {};
   let mouseMovementInfo = {
     turnRadians: 0,
@@ -493,9 +555,12 @@ window.onload = function(){
 
   canvas.onclick = canvas.requestPointerLock;
 
+  let mazeObject = buildMaze(GRID_SIZE);
+  console.log(mazeObject);
+  let camera = createCamera(gl, program, vec3.fromValues(mazeObject.initRow * BLOCKSIZE + BLOCKSIZE/2, 0.5, mazeObject.initCol * BLOCKSIZE + BLOCKSIZE/2));
   let grid = createGrid(gl, program);
   let wall = createWall(gl, program);
-  let mazeObject = buildMaze(GRID_SIZE);
+  let openSquare = createOpenSquare(gl, program);
 
   let render = function(){
 
@@ -555,11 +620,11 @@ window.onload = function(){
     let rootNode = createScenegraph(gl, program);
 
     //Place grid
-    let gridNode = rootNode.add("shape", grid);
+    // let gridNode = rootNode.add("shape", grid);
 
 
     let mazeTransform = mat4.create();
-    mat4.translate(mazeTransform, mazeTransform, vec3.fromValues(-HALF_GRID_SIZE, 0, -HALF_GRID_SIZE));
+    //mat4.translate(mazeTransform, mazeTransform, vec3.fromValues(-HALF_GRID_SIZE, 0, -HALF_GRID_SIZE));
     let mazeNode = rootNode.add('transformation', mazeTransform)
 
     for (let row = 0; row < mazeObject.maze.length; row++) {
@@ -570,6 +635,15 @@ window.onload = function(){
         switch (mazeObject.maze[row][col]) {
           case MAZE_CONSTANTS.WALL:
             transformNode.add('shape', wall);
+            break;
+          case MAZE_CONSTANTS.OPEN:
+            transformNode.add('shape', openSquare);
+            break;
+          case MAZE_CONSTANTS.START:
+            transformNode.add('shape', openSquare);
+            break;
+          case MAZE_CONSTANTS.END:
+            transformNode.add('shape', openSquare);
             break;
         }
       }
