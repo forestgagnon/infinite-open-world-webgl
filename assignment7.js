@@ -48,7 +48,7 @@ const LIGHT_PINK = rgbToFloats(250, 159, 181);
 const DARK_GREEN = rgbToFloats(49, 163, 84);
 const LIGHT_GREEN = rgbToFloats(173, 221, 142);
 
-const GRID_SIZE = 32;
+const GRID_SIZE = 36;
 const HALF_GRID_SIZE = GRID_SIZE / 2; //don't compute this everywhere
 const PERSPECTIVE_NEAR_PLANE = 0.1;
 const PERSPECTIVE_FAR_PLANE = 100;
@@ -60,9 +60,9 @@ const NOCLIP = false;
 function buildMaze(size) {
   let maze = [];
   let wallsToExplore = [];
-  for(let row = 0; row < size; row++) {
+  for(let row = 0; row < size+1; row++) {
     maze[row] = [];
-    for(let col = 0; col < size; col++) {
+    for(let col = 0; col < size+1; col++) {
       maze[row][col] = MAZE_CONSTANTS.WALL;
     }
   }
