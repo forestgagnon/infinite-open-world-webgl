@@ -1,5 +1,5 @@
 //========== Forest Gagnon - CS461 HW07 - assignment7.js ==========\\
-/* Extra features: Mouse look, Camera with proper pitch (hooray!), anisotropic filtering for the mipmap,
+/* Extra features: Mouse look & camera with proper pitch this time (hooray!), anisotropic filtering for the mipmap,
 *
 */
 
@@ -113,8 +113,8 @@ const TURN_DEGREES = Math.PI / 75;
 const MOUSE_SENSITIVITY = 0.00025;
 const BLOCKSIZE = 2.0;
 const NOCLIP = false;
-const MOVEMENT_SPEED_FACTOR = 0.05;
-const MOVEMENT_SPEED_FACTOR_RUNNING = 0.1;
+const MOVEMENT_SPEED_FACTOR = 0.025;
+const MOVEMENT_SPEED_FACTOR_RUNNING = MOVEMENT_SPEED_FACTOR * 2;
 
 function buildMaze(size) {
   let maze = [];
