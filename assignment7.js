@@ -5,27 +5,81 @@
 
 let vertexShader = `
 attribute vec4 a_Position;
+attribute vec4 a_Normal;
 attribute vec2 a_TexCoord;
 
 uniform mat4 u_View;
 uniform mat4 u_Projection;
 uniform mat4 u_Transform;
+uniform mat4 u_ReverseView;
+uniform vec3 u_LightPosition;
+uniform vec3 u_LightAxis;
 
-varying vec4 v_Color;
 varying vec2 v_TexCoord;
+varying vec4 v_Luminance;
+// varying vec3 v_Position;
+// varying vec3 v_Normal;
+
+vec3 ambient, diffuse, light_position;
+float lightAngleAttn;
+
+vec3 L, N, V, H, P;
 
 void main(){
   v_TexCoord = a_TexCoord;
   gl_Position = u_Projection * u_View * u_Transform * a_Position;
+  // v_Position = (u_Transform * a_Position).xyz;
+  // v_Normal = (u_View * u_Transform * vec4(a_Normal, 0.0)).xyz;
+  //Lighting boilerplate borrowed from http://bl.ocks.org/ProfBlack/a7fffe061f3f78da64888f0da0e08b85
+
+  // light_position = u_LightPosition;
+  light_position = (u_Transform * vec4(u_LightPosition, 0.0)).xyz;
+  // light_position = (u_View * vec4(0.0, 0.5, 0.0, 1.0)).xyz;
+
+	vec3 light_ambient = vec3(0.1, 0.1, 0.1);
+	vec3 light_diffuse = vec3(0.9, 0.9, 0.9);
+	vec3 light_specular = vec3(0.9, 0.9, 0.9);
+	float shininess = 60.0;
+
+	P = (u_View * u_Transform*a_Position).xyz;
+
+	N = normalize(u_View * u_Transform * a_Normal).xyz;
+	L = normalize(light_position - P);
+	V = normalize( -P);
+	H = normalize(L+V);
+
+
+	ambient = light_ambient;
+	diffuse = (max(dot(L, N), 0.0) * light_diffuse) / (pow(2.0, distance(light_position, (u_Transform*a_Position).xyz)));
+	diffuse = (max(dot(L, N), 0.0) * light_diffuse);
+
+  // if(distance(light_position, (u_Transform*a_Position).xyz) > 25.0) {
+  //   diffuse = vec3(0.0, 0.0, 0.0);
+  // }
+
+  // if (abs(degrees(acos(dot(normalize(N - light_position), normalize(u_LightAxis)))) - 180.0) > 10.0) {
+  //   diffuse = vec3(0.0, 0.0, 0.0);
+  // }
+
+  lightAngleAttn = acos(dot(normalize(u_LightAxis), L));
+
+  v_Luminance = vec4(diffuse * lightAngleAttn, 1.0);
+  v_Luminance = vec4(diffuse / 1.0, 1.0);
 }`;
 
 var fragmentShader = `
 precision mediump float;
+
 uniform sampler2D u_Sampler;
+// uniform vec3 u_LightPosition;
+
+varying vec4 v_Luminance;
+// varying vec3 v_Position;
+// varying vec3 v_Normal;
 varying vec2 v_TexCoord;
+
 void main(){
-  // gl_FragColor = v_Color;
-  gl_FragColor = texture2D(u_Sampler, v_TexCoord);
+  gl_FragColor = texture2D(u_Sampler, v_TexCoord) * v_Luminance;
 }`;
 
 function rgbToFloats(r, g, b) {
@@ -163,11 +217,13 @@ const createCamera = function(gl, program, eyeVector) {
   let eye = eyeVector;
   let up = vec3.fromValues(0, 1, 0);
   let at = vec3.create();
+  let tiltedAt;
   vec3.add(at, eye, vec3.fromValues(10, 0, 10));
   let pitch = 0;
+  let view;
   return {
     apply: () => {
-      let view = mat4.create();
+      view = mat4.create();
 
       let rotationAxis = vec3.create();
       let directionNormal = vec3.create();
@@ -177,12 +233,12 @@ const createCamera = function(gl, program, eyeVector) {
 
       let q = quat.create();
       quat.setAxisAngle(q, rotationAxis, pitch);
-      let newAt = vec3.create;
-      vec3.subtract(newAt, at, eye);
-      vec3.transformQuat(newAt, newAt, q);
-      vec3.add(newAt, newAt, eye);
+       tiltedAt = vec3.create;
+      vec3.subtract(tiltedAt, at, eye);
+      vec3.transformQuat(tiltedAt, tiltedAt, q);
+      vec3.add(tiltedAt, tiltedAt, eye);
 
-      mat4.lookAt(view, eye, newAt, up);
+      mat4.lookAt(view, eye, tiltedAt, up);
       gl.uniformMatrix4fv(program.u_View, false, view);
     },
 
@@ -269,6 +325,18 @@ const createCamera = function(gl, program, eyeVector) {
       movementVec = vec3.fromValues(0, MOVEMENT_SPEED_FACTOR, 0);
       vec3.subtract(eye, eye, movementVec);
       vec3.subtract(at, at, movementVec);
+    },
+
+    getEyeVector: () => {
+      return eye;
+    },
+
+    getAtVector: () => {
+      return tiltedAt;
+    },
+
+    getViewMatrix: () => {
+      return view;
     }
   }
 };
@@ -306,7 +374,7 @@ function createGrid(gl, program) {
 
 function createWall(gl, program) {
   let wall = {
-    vertices : vertices = new Float32Array([
+    vertices: new Float32Array([
       BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, 0,0, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE, // front face
       BLOCKSIZE, BLOCKSIZE, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE,  BLOCKSIZE,0,0,  BLOCKSIZE, BLOCKSIZE,0, // right face
       BLOCKSIZE, BLOCKSIZE,0,  BLOCKSIZE,0,0, 0,0,0, 0, BLOCKSIZE,0, // back face
@@ -315,7 +383,16 @@ function createWall(gl, program) {
       BLOCKSIZE,0, BLOCKSIZE, 0,0, BLOCKSIZE, 0,0,0,  BLOCKSIZE,0,0, // bottom face
     ]),
 
-    textureCoordinates : new Float32Array([
+    normals: new Float32Array([
+      0.0, 0.0, 1.0,  0.0, 0.0, 1.0,  0.0, 0.0, 1.0,  0.0, 0.0, 1.0, // front face
+      1.0, 0.0, 0.0,  1.0, 0.0, 0.0,  1.0, 0.0, 0.0,  1.0, 0.0, 0.0, // right face
+      0.0, 0.0,-1.0,  0.0, 0.0,-1.0,  0.0, 0.0,-1.0,  0.0, 0.0,-1.0, // back face
+     -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, // left face
+      0.0, 1.0, 0.0,  0.0, 1.0, 0.0,  0.0, 1.0, 0.0,  0.0, 1.0, 0.0, // top face
+      0.0,-1.0, 0.0,  0.0,-1.0, 0.0,  0.0,-1.0, 0.0,  0.0,-1.0, 0.0, // bottom face
+    ]),
+
+    textureCoordinates: new Float32Array([
       BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // front face
       0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, BLOCKSIZE, BLOCKSIZE, // right face
       0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, BLOCKSIZE, BLOCKSIZE,  // back face
@@ -333,15 +410,17 @@ function createWall(gl, program) {
     //  20,21,22, 20,22,23 // bottom face
 
     ]),
-    dimensions: 3,
-    numPoints: 8
+    dimensions: 3
   };
   wall.vertexBuffer = gl.createBuffer();
-  wall.colorBuffer = gl.createBuffer();
+  wall.normalBuffer = gl.createBuffer();
   wall.indexBuffer = gl.createBuffer();
   wall.textureBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, wall.vertexBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, wall.vertices, gl.STATIC_DRAW);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, wall.normalBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, wall.normals, gl.STATIC_DRAW);
 
   gl.bindBuffer(gl.ARRAY_BUFFER, wall.textureBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, wall.textureCoordinates, gl.STATIC_DRAW);
@@ -355,6 +434,9 @@ function createWall(gl, program) {
     gl.bindBuffer(gl.ARRAY_BUFFER, wall.vertexBuffer);
     gl.vertexAttribPointer(program.a_Position, wall.dimensions, gl.FLOAT, false, 0,0);
 
+    gl.bindBuffer(gl.ARRAY_BUFFER, wall.normalBuffer);
+    gl.vertexAttribPointer(program.a_Normal, wall.dimensions, gl.FLOAT, false, 0,0);
+
     gl.bindBuffer(gl.ARRAY_BUFFER, wall.textureBuffer);
     gl.vertexAttribPointer(program.a_TexCoord, 2, gl.FLOAT, false, 0,0);
 
@@ -365,13 +447,22 @@ function createWall(gl, program) {
 
 function createFloor(gl, program) {
   let floor = {
-    vertices : vertices = new Float32Array([
+    vertices: new Float32Array([
       BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, 0,0, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE, // front face
       BLOCKSIZE, BLOCKSIZE, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE,  BLOCKSIZE,0,0,  BLOCKSIZE, BLOCKSIZE,0, // right face
       BLOCKSIZE, BLOCKSIZE,0,  BLOCKSIZE,0,0, 0,0,0, 0, BLOCKSIZE,0, // back face
      0, BLOCKSIZE,0, 0,0,0, 0,0, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, // left face
       BLOCKSIZE, BLOCKSIZE, BLOCKSIZE,  BLOCKSIZE, BLOCKSIZE,0, 0, BLOCKSIZE,0, 0, BLOCKSIZE, BLOCKSIZE, // top face
       BLOCKSIZE,0, BLOCKSIZE, 0,0, BLOCKSIZE, 0,0,0,  BLOCKSIZE,0,0, // bottom face
+    ]),
+
+    normals: new Float32Array([
+      0.0, 0.0, 1.0,  0.0, 0.0, 1.0,  0.0, 0.0, 1.0,  0.0, 0.0, 1.0, // front face
+      1.0, 0.0, 0.0,  1.0, 0.0, 0.0,  1.0, 0.0, 0.0,  1.0, 0.0, 0.0, // right face
+      0.0, 0.0,-1.0,  0.0, 0.0,-1.0,  0.0, 0.0,-1.0,  0.0, 0.0,-1.0, // back face
+     -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, // left face
+      0.0, 1.0, 0.0,  0.0, 1.0, 0.0,  0.0, 1.0, 0.0,  0.0, 1.0, 0.0, // top face
+      0.0,-1.0, 0.0,  0.0,-1.0, 0.0,  0.0,-1.0, 0.0,  0.0,-1.0, 0.0, // bottom face
     ]),
 
     textureCoordinates : new Float32Array([
@@ -396,11 +487,14 @@ function createFloor(gl, program) {
     numPoints: 8
   };
   floor.vertexBuffer = gl.createBuffer();
-  floor.colorBuffer = gl.createBuffer();
+  floor.normalBuffer = gl.createBuffer();
   floor.indexBuffer = gl.createBuffer();
   floor.textureBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, floor.vertexBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, floor.vertices, gl.STATIC_DRAW);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, floor.normalBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, floor.normals, gl.STATIC_DRAW);
 
   gl.bindBuffer(gl.ARRAY_BUFFER, floor.textureBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, floor.textureCoordinates, gl.STATIC_DRAW);
@@ -414,6 +508,9 @@ function createFloor(gl, program) {
     gl.bindBuffer(gl.ARRAY_BUFFER, floor.vertexBuffer);
     gl.vertexAttribPointer(program.a_Position, floor.dimensions, gl.FLOAT, false, 0,0);
 
+    gl.bindBuffer(gl.ARRAY_BUFFER, floor.normalBuffer);
+    gl.vertexAttribPointer(program.a_Normal, floor.dimensions, gl.FLOAT, false, 0,0);
+
     gl.bindBuffer(gl.ARRAY_BUFFER, floor.textureBuffer);
     gl.vertexAttribPointer(program.a_TexCoord, 2, gl.FLOAT, false, 0,0);
 
@@ -424,13 +521,22 @@ function createFloor(gl, program) {
 
 function createRoof(gl, program) {
   let roof = {
-    vertices : vertices = new Float32Array([
+    vertices: new Float32Array([
       BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, 0,0, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE, // front face
       BLOCKSIZE, BLOCKSIZE, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE,  BLOCKSIZE,0,0,  BLOCKSIZE, BLOCKSIZE,0, // right face
       BLOCKSIZE, BLOCKSIZE,0,  BLOCKSIZE,0,0, 0,0,0, 0, BLOCKSIZE,0, // back face
      0, BLOCKSIZE,0, 0,0,0, 0,0, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, // left face
       BLOCKSIZE, BLOCKSIZE, BLOCKSIZE,  BLOCKSIZE, BLOCKSIZE,0, 0, BLOCKSIZE,0, 0, BLOCKSIZE, BLOCKSIZE, // top face
       BLOCKSIZE,0, BLOCKSIZE, 0,0, BLOCKSIZE, 0,0,0,  BLOCKSIZE,0,0, // bottom face
+    ]),
+
+    normals: new Float32Array([
+      0.0, 0.0, 1.0,  0.0, 0.0, 1.0,  0.0, 0.0, 1.0,  0.0, 0.0, 1.0, // front face
+      1.0, 0.0, 0.0,  1.0, 0.0, 0.0,  1.0, 0.0, 0.0,  1.0, 0.0, 0.0, // right face
+      0.0, 0.0,-1.0,  0.0, 0.0,-1.0,  0.0, 0.0,-1.0,  0.0, 0.0,-1.0, // back face
+     -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, // left face
+      0.0, 1.0, 0.0,  0.0, 1.0, 0.0,  0.0, 1.0, 0.0,  0.0, 1.0, 0.0, // top face
+      0.0,-1.0, 0.0,  0.0,-1.0, 0.0,  0.0,-1.0, 0.0,  0.0,-1.0, 0.0, // bottom face
     ]),
 
     textureCoordinates : new Float32Array([
@@ -455,11 +561,14 @@ function createRoof(gl, program) {
     numPoints: 8
   };
   roof.vertexBuffer = gl.createBuffer();
-  roof.colorBuffer = gl.createBuffer();
+  roof.normalBuffer = gl.createBuffer();
   roof.indexBuffer = gl.createBuffer();
   roof.textureBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, roof.vertexBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, roof.vertices, gl.STATIC_DRAW);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, roof.normalBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, roof.normals, gl.STATIC_DRAW);
 
   gl.bindBuffer(gl.ARRAY_BUFFER, roof.textureBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, roof.textureCoordinates, gl.STATIC_DRAW);
@@ -472,6 +581,9 @@ function createRoof(gl, program) {
 
     gl.bindBuffer(gl.ARRAY_BUFFER, roof.vertexBuffer);
     gl.vertexAttribPointer(program.a_Position, roof.dimensions, gl.FLOAT, false, 0,0);
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, roof.normalBuffer);
+    gl.vertexAttribPointer(program.a_Normal, roof.dimensions, gl.FLOAT, false, 0,0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, roof.textureBuffer);
     gl.vertexAttribPointer(program.a_TexCoord, 2, gl.FLOAT, false, 0,0);
@@ -565,11 +677,15 @@ window.onload = function(){
   let program = middUtils.initializeProgram(gl, vertexShader, fragmentShader);
 
   program.a_Position = gl.getAttribLocation(program, 'a_Position');
+  program.a_Normal = gl.getAttribLocation(program, 'a_Normal');
   program.a_Color = gl.getAttribLocation(program, 'a_Color');
   program.a_TexCoord = gl.getAttribLocation(program, 'a_TexCoord');
   program.u_Sampler = gl.getUniformLocation(program, 'u_Sampler');
   program.u_Projection = gl.getUniformLocation(program, 'u_Projection');
   program.u_View = gl.getUniformLocation(program, 'u_View');
+  program.u_LightPosition = gl.getUniformLocation(program, 'u_LightPosition');
+  program.u_LightAxis = gl.getUniformLocation(program, 'u_LightAxis');
+  program.u_ReverseView = gl.getUniformLocation(program, 'u_ReverseView');
 
   gl.enable(gl.DEPTH_TEST);
   gl.clearColor(0,0,0,1);
@@ -612,9 +728,7 @@ window.onload = function(){
   gl.enableVertexAttribArray(program.a_TexCoord);
 
   let mazeObject = buildMaze(GRID_SIZE);
-  console.log(mazeObject);
   let camera = createCamera(gl, program, vec3.fromValues(mazeObject.initRow * BLOCKSIZE + BLOCKSIZE/2, 0.5, mazeObject.initCol * BLOCKSIZE + BLOCKSIZE/2));
-  // let grid = createGrid(gl, program);
   let wall = createWall(gl, program);
   let floor = createFloor(gl, program);
   let roof = createRoof(gl, program);
@@ -672,13 +786,23 @@ window.onload = function(){
     gl.uniformMatrix4fv(program.u_Projection, false, projection);
 
     camera.apply();
+    const eyeVector = camera.getEyeVector();
+    const atVector = camera.getAtVector();
+    const viewMatrix = camera.getViewMatrix();
+    gl.uniform3fv(program.u_LightPosition, vec3.fromValues(eyeVector[0], eyeVector[1] , eyeVector[2]));
+
+    let cameraDirectionVector = vec3.create();
+    vec3.subtract(cameraDirectionVector, eyeVector, atVector);
+    vec3.normalize(cameraDirectionVector, cameraDirectionVector);
+    gl.uniform3fv(program.u_LightAxis, vec3.fromValues(cameraDirectionVector[0], cameraDirectionVector[1], cameraDirectionVector[2]));
+
+    reverseView = mat4.create();
+    mat4.invert(reverseView, viewMatrix);
+    mat4.transpose(reverseView, reverseView);
+    gl.uniformMatrix4fv(program.u_ReverseView, false, reverseView);
 
     //Initialize scenegraph and drawing functions
     let rootNode = createScenegraph(gl, program);
-
-    //Place grid
-    // let gridNode = rootNode.add("shape", grid);
-
 
     let mazeTransform = mat4.create();
     //mat4.translate(mazeTransform, mazeTransform, vec3.fromValues(-HALF_GRID_SIZE, 0, -HALF_GRID_SIZE));
@@ -763,11 +887,3 @@ function getRandomInt(min, max) {
 function getRandom(min, max) {
   return Math.random() * (max - min) + min;
 }
-
-// from http://gizma.com/easing/
-function easeInOutQuad (t, b, c, d) {
-  t /= d/2;
-  if (t < 1) return c/2*t*t + b;
-  t--;
-  return -c/2 * (t*(t-2) - 1) + b;
-};
