@@ -12,48 +12,101 @@ uniform mat4 u_View;
 uniform mat4 u_Projection;
 uniform mat4 u_Transform;
 uniform mat4 u_ReverseView;
+// uniform vec3 u_LightPosition;
+// uniform vec3 u_LightAxis;
+
+varying vec2 v_TexCoord;
+// varying vec4 v_Luminance;
+varying vec4 v_Position;
+varying vec4 v_Normal;
+
+// vec3 ambient, diffuse, light_position;
+// float lightAngleAttn;
+
+// vec3 L, N, V, H, P;
+
+void main(){
+  gl_Position = u_Projection * u_View * u_Transform * a_Position;
+  v_TexCoord = a_TexCoord;
+  v_Position = (u_Transform * a_Position);
+  v_Normal = normalize(u_Transform * a_Normal);
+  //Lighting boilerplate borrowed from http://bl.ocks.org/ProfBlack/a7fffe061f3f78da64888f0da0e08b85
+
+  // light_position = (u_Transform * vec4(u_LightPosition, 0.0)).xyz;
+  //
+	// vec3 light_ambient = vec3(0.1, 0.1, 0.1);
+	// vec3 light_diffuse = vec3(0.9, 0.9, 0.9);
+	// vec3 light_specular = vec3(0.9, 0.9, 0.9);
+	// float shininess = 60.0;
+  //
+	// P = (u_Transform*a_Position).xyz;
+  //
+	// N = normalize(u_Transform * a_Normal).xyz;
+	// L = normalize(light_position - P);
+	// V = normalize( -P);
+	// H = normalize(L+V);
+  //
+  //
+	// ambient = light_ambient;
+	// diffuse = (max(dot(L, N), 0.0) * light_diffuse) / (pow(2.0, distance(light_position, (u_Transform*a_Position).xyz)));
+	// diffuse = (max(dot(L, N), 0.0) * light_diffuse);
+  //
+  // // if(distance(light_position, (u_Transform*a_Position).xyz) > 25.0) {
+  // //   diffuse = vec3(0.0, 0.0, 0.0);
+  // // }
+  //
+  // // if (abs(degrees(acos(dot(normalize(N - light_position), normalize(u_LightAxis)))) - 180.0) > 10.0) {
+  // //   diffuse = vec3(0.0, 0.0, 0.0);
+  // // }
+  //
+  // lightAngleAttn = acos(dot(normalize(u_LightAxis), L));
+  //
+  // v_Luminance = vec4(ambient / lightAngleAttn, 1.0);
+  // // v_Luminance = vec4(diffuse / 1.0, 1.0);
+}`;
+
+var fragmentShader = `
+precision mediump float;
+
+uniform sampler2D u_Sampler;
+uniform mat4 frag_u_Transform;
 uniform vec3 u_LightPosition;
 uniform vec3 u_LightAxis;
 
+// varying vec4 v_Luminance;
+varying vec4 v_Position;
+varying vec4 v_Normal;
 varying vec2 v_TexCoord;
-varying vec4 v_Luminance;
-// varying vec3 v_Position;
-// varying vec3 v_Normal;
 
+vec4 luminance;
 vec3 ambient, diffuse, light_position;
 float lightAngleAttn;
 
 vec3 L, N, V, H, P;
 
 void main(){
-  v_TexCoord = a_TexCoord;
-  gl_Position = u_Projection * u_View * u_Transform * a_Position;
-  // v_Position = (u_Transform * a_Position).xyz;
-  // v_Normal = (u_View * u_Transform * vec4(a_Normal, 0.0)).xyz;
-  //Lighting boilerplate borrowed from http://bl.ocks.org/ProfBlack/a7fffe061f3f78da64888f0da0e08b85
+  // gl_FragColor = texture2D(u_Sampler, v_TexCoord) * v_Luminance;
 
-  // light_position = u_LightPosition;
-  light_position = (u_Transform * vec4(u_LightPosition, 0.0)).xyz;
-  // light_position = (u_View * vec4(0.0, 0.5, 0.0, 1.0)).xyz;
+  light_position = (frag_u_Transform * vec4(u_LightPosition, 1.0)).xyz;
 
 	vec3 light_ambient = vec3(0.1, 0.1, 0.1);
 	vec3 light_diffuse = vec3(0.9, 0.9, 0.9);
 	vec3 light_specular = vec3(0.9, 0.9, 0.9);
 	float shininess = 60.0;
 
-	P = (u_View * u_Transform*a_Position).xyz;
+	P = (frag_u_Transform*v_Position).xyz;
 
-	N = normalize(u_View * u_Transform * a_Normal).xyz;
+	N = normalize(frag_u_Transform * v_Normal).xyz;
 	L = normalize(light_position - P);
 	V = normalize( -P);
 	H = normalize(L+V);
 
 
 	ambient = light_ambient;
-	diffuse = (max(dot(L, N), 0.0) * light_diffuse) / (pow(2.0, distance(light_position, (u_Transform*a_Position).xyz)));
+	diffuse = (max(dot(L, N), 0.0) * light_diffuse) / (pow(2.0, distance(light_position, (frag_u_Transform*v_Position).xyz)));
 	diffuse = (max(dot(L, N), 0.0) * light_diffuse);
 
-  // if(distance(light_position, (u_Transform*a_Position).xyz) > 25.0) {
+  // if(distance(light_position, (frag_u_Transform*v_Position).xyz) > 25.0) {
   //   diffuse = vec3(0.0, 0.0, 0.0);
   // }
 
@@ -63,23 +116,9 @@ void main(){
 
   lightAngleAttn = acos(dot(normalize(u_LightAxis), L));
 
-  v_Luminance = vec4(diffuse * lightAngleAttn, 1.0);
-  v_Luminance = vec4(diffuse / 1.0, 1.0);
-}`;
-
-var fragmentShader = `
-precision mediump float;
-
-uniform sampler2D u_Sampler;
-// uniform vec3 u_LightPosition;
-
-varying vec4 v_Luminance;
-// varying vec3 v_Position;
-// varying vec3 v_Normal;
-varying vec2 v_TexCoord;
-
-void main(){
-  gl_FragColor = texture2D(u_Sampler, v_TexCoord) * v_Luminance;
+  luminance = vec4(diffuse / lightAngleAttn, 1.0);
+  // v_Luminance = vec4(diffuse / 1.0, 1.0);
+  gl_FragColor = texture2D(u_Sampler, v_TexCoord) * luminance;
 }`;
 
 function rgbToFloats(r, g, b) {
@@ -162,6 +201,7 @@ const createScenegraph = function(gl, program){
   let stack = [];
   let currentMatrix = mat4.create();
   let u_Transform = gl.getUniformLocation(program, 'u_Transform');
+  let frag_u_Transform = gl.getUniformLocation(program, 'frag_u_Transform');
 
   let createTransformationNode = function(matrix){
     let children = [];
@@ -184,6 +224,7 @@ const createScenegraph = function(gl, program){
         mat4.mul(newMatrix, currentMatrix, matrix);
         currentMatrix = newMatrix;
         gl.uniformMatrix4fv(u_Transform, false, currentMatrix);
+        gl.uniformMatrix4fv(frag_u_Transform, false, currentMatrix);
         children.forEach((child) => {
           child.apply();
         });
