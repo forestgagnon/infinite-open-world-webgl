@@ -11,7 +11,6 @@ attribute vec2 a_TexCoord;
 uniform mat4 u_View;
 uniform mat4 u_Projection;
 uniform mat4 u_Transform;
-uniform mat4 u_ReverseView;
 // uniform vec3 u_LightPosition;
 // uniform vec3 u_LightAxis;
 
@@ -70,6 +69,8 @@ precision mediump float;
 
 uniform sampler2D u_Sampler;
 uniform mat4 frag_u_Transform;
+uniform mat4 frag_u_View;
+uniform mat4 u_ReverseView;
 uniform vec3 u_LightPosition;
 uniform vec3 u_LightAxis;
 
@@ -96,15 +97,15 @@ void main(){
 
 	P = (frag_u_Transform*v_Position).xyz;
 
-	N = normalize(frag_u_Transform * v_Normal).xyz;
+	N = (frag_u_Transform * v_Normal).xyz;
 	L = normalize(light_position - P);
 	V = normalize( -P);
 	H = normalize(L+V);
 
 
 	ambient = light_ambient;
-	diffuse = (max(dot(L, N), 0.0) * light_diffuse) / (pow(2.0, distance(light_position, (frag_u_Transform*v_Position).xyz)));
-	diffuse = (max(dot(L, N), 0.0) * light_diffuse);
+	diffuse = (max(dot(L, u_LightAxis), 0.0) * light_diffuse) / (pow(2.0, distance(light_position, (frag_u_Transform*v_Position).xyz)));
+	// diffuse = (max(dot(L, N), 0.0) * light_diffuse);
 
   // if(distance(light_position, (frag_u_Transform*v_Position).xyz) > 25.0) {
   //   diffuse = vec3(0.0, 0.0, 0.0);
@@ -116,7 +117,7 @@ void main(){
 
   lightAngleAttn = acos(dot(normalize(u_LightAxis), L));
 
-  luminance = vec4(diffuse / lightAngleAttn, 1.0);
+  luminance = vec4((diffuse) / (lightAngleAttn*0.5), 1.0);
   // v_Luminance = vec4(diffuse / 1.0, 1.0);
   gl_FragColor = texture2D(u_Sampler, v_TexCoord) * luminance;
 }`;
@@ -281,6 +282,7 @@ const createCamera = function(gl, program, eyeVector) {
 
       mat4.lookAt(view, eye, tiltedAt, up);
       gl.uniformMatrix4fv(program.u_View, false, view);
+      gl.uniformMatrix4fv(program.frag_u_View, false, view);
     },
 
     moveForward: (disableVerticalMovement = false) => {
@@ -724,6 +726,7 @@ window.onload = function(){
   program.u_Sampler = gl.getUniformLocation(program, 'u_Sampler');
   program.u_Projection = gl.getUniformLocation(program, 'u_Projection');
   program.u_View = gl.getUniformLocation(program, 'u_View');
+  program.frag_u_View = gl.getUniformLocation(program, 'frag_u_View');
   program.u_LightPosition = gl.getUniformLocation(program, 'u_LightPosition');
   program.u_LightAxis = gl.getUniformLocation(program, 'u_LightAxis');
   program.u_ReverseView = gl.getUniformLocation(program, 'u_ReverseView');
