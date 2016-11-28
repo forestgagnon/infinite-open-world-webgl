@@ -85,6 +85,8 @@ float lightAngleAttn;
 
 vec3 L, N, V, H, P;
 
+float lightFalloff, lightFalloffMultiplier;
+
 void main(){
   // gl_FragColor = texture2D(u_Sampler, v_TexCoord) * v_Luminance;
 
@@ -104,7 +106,9 @@ void main(){
 
 
 	ambient = light_ambient;
-	diffuse = (max(dot(L, u_LightAxis), 0.0) * light_diffuse) / (pow(2.0, distance(light_position, (frag_u_Transform*v_Position).xyz)));
+  lightFalloff = pow(2.0, distance(light_position, (frag_u_Transform*v_Position).xyz));
+  lightFalloffMultiplier = 20.0;
+	diffuse = (max(dot(L, u_LightAxis), 0.0) * light_diffuse) / (lightFalloff * lightFalloffMultiplier);
 	// diffuse = (max(dot(L, N), 0.0) * light_diffuse);
 
   // if(distance(light_position, (frag_u_Transform*v_Position).xyz) > 25.0) {
