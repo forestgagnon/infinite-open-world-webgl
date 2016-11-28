@@ -29,39 +29,6 @@ void main(){
   v_TexCoord = a_TexCoord;
   v_Position = (u_Transform * a_Position);
   v_Normal = normalize(u_Transform * a_Normal);
-  //Lighting boilerplate borrowed from http://bl.ocks.org/ProfBlack/a7fffe061f3f78da64888f0da0e08b85
-
-  // light_position = (u_Transform * vec4(u_LightPosition, 0.0)).xyz;
-  //
-	// vec3 light_ambient = vec3(0.1, 0.1, 0.1);
-	// vec3 light_diffuse = vec3(0.9, 0.9, 0.9);
-	// vec3 light_specular = vec3(0.9, 0.9, 0.9);
-	// float shininess = 60.0;
-  //
-	// P = (u_Transform*a_Position).xyz;
-  //
-	// N = normalize(u_Transform * a_Normal).xyz;
-	// L = normalize(light_position - P);
-	// V = normalize( -P);
-	// H = normalize(L+V);
-  //
-  //
-	// ambient = light_ambient;
-	// diffuse = (max(dot(L, N), 0.0) * light_diffuse) / (pow(2.0, distance(light_position, (u_Transform*a_Position).xyz)));
-	// diffuse = (max(dot(L, N), 0.0) * light_diffuse);
-  //
-  // // if(distance(light_position, (u_Transform*a_Position).xyz) > 25.0) {
-  // //   diffuse = vec3(0.0, 0.0, 0.0);
-  // // }
-  //
-  // // if (abs(degrees(acos(dot(normalize(N - light_position), normalize(u_LightAxis)))) - 180.0) > 10.0) {
-  // //   diffuse = vec3(0.0, 0.0, 0.0);
-  // // }
-  //
-  // lightAngleAttn = acos(dot(normalize(u_LightAxis), L));
-  //
-  // v_Luminance = vec4(ambient / lightAngleAttn, 1.0);
-  // // v_Luminance = vec4(diffuse / 1.0, 1.0);
 }`;
 
 var fragmentShader = `
@@ -85,7 +52,7 @@ float lightAngleAttn;
 
 vec3 L, N, V, H, P;
 
-float lightFalloff, lightFalloffMultiplier;
+float diffuseLightFalloff, diffuseLightFalloffMultiplier, lampSpreadFactor;
 
 void main(){
   // gl_FragColor = texture2D(u_Sampler, v_TexCoord) * v_Luminance;
@@ -106,23 +73,14 @@ void main(){
 
 
 	ambient = light_ambient;
-  lightFalloff = pow(2.0, distance(light_position, (frag_u_Transform*v_Position).xyz));
-  lightFalloffMultiplier = 20.0;
-	diffuse = (max(dot(L, u_LightAxis), 0.0) * light_diffuse) / (lightFalloff * lightFalloffMultiplier);
-	// diffuse = (max(dot(L, N), 0.0) * light_diffuse);
-
-  // if(distance(light_position, (frag_u_Transform*v_Position).xyz) > 25.0) {
-  //   diffuse = vec3(0.0, 0.0, 0.0);
-  // }
-
-  // if (abs(degrees(acos(dot(normalize(N - light_position), normalize(u_LightAxis)))) - 180.0) > 10.0) {
-  //   diffuse = vec3(0.0, 0.0, 0.0);
-  // }
+  diffuseLightFalloff = pow(2.0, distance(light_position, (frag_u_Transform*v_Position).xyz));
+  diffuseLightFalloffMultiplier = 40.0;
+	diffuse = (max(dot(L, u_LightAxis), 0.0) * light_diffuse) / (diffuseLightFalloff * diffuseLightFalloffMultiplier);
 
   lightAngleAttn = acos(dot(normalize(u_LightAxis), L));
 
-  luminance = vec4((diffuse) / (lightAngleAttn*0.5), 1.0);
-  // v_Luminance = vec4(diffuse / 1.0, 1.0);
+  lampSpreadFactor = 4.0 / diffuseLightFalloffMultiplier;
+  luminance = vec4((diffuse) / (lightAngleAttn * lampSpreadFactor * vec3(0.5, 0.7, 0.9)), 1.0);
   gl_FragColor = texture2D(u_Sampler, v_TexCoord) * luminance;
 }`;
 
@@ -155,6 +113,8 @@ const TURN_DEGREES = Math.PI / 75;
 const MOUSE_SENSITIVITY = 0.00025;
 const BLOCKSIZE = 2.0;
 const NOCLIP = false;
+const MOVEMENT_SPEED_FACTOR = 0.05;
+const MOVEMENT_SPEED_FACTOR_RUNNING = 0.1;
 
 function buildMaze(size) {
   let maze = [];
@@ -257,7 +217,6 @@ const createScenegraph = function(gl, program){
 //========== CAMERA ==========\\
 const createCamera = function(gl, program, eyeVector) {
   const CAMERA_PITCH_FACTOR = PERSPECTIVE_FAR_PLANE - PERSPECTIVE_NEAR_PLANE;
-  const MOVEMENT_SPEED_FACTOR = 0.05;
   const STRAFE_FACTOR = MOVEMENT_SPEED_FACTOR;
 
   let eye = eyeVector;
@@ -289,27 +248,27 @@ const createCamera = function(gl, program, eyeVector) {
       gl.uniformMatrix4fv(program.frag_u_View, false, view);
     },
 
-    moveForward: (disableVerticalMovement = false) => {
+    moveForward: (params) => {
       let direction = vec3.create();
       vec3.subtract(direction, at, eye);
-      if (disableVerticalMovement) {
+      if (params.disableVerticalMovement) {
         direction[1] = 0;
       }
       vec3.normalize(direction, direction);
       movementVec = vec3.create();
-      vec3.multiply(movementVec, direction, vec3.fromValues(MOVEMENT_SPEED_FACTOR, MOVEMENT_SPEED_FACTOR, MOVEMENT_SPEED_FACTOR));
+      vec3.multiply(movementVec, direction, vec3.fromValues(params.movementSpeed, params.movementSpeed, params.movementSpeed));
       vec3.add(eye, eye, movementVec);
       vec3.add(at, at, movementVec);
     },
-    moveBackward: (disableVerticalMovement = false) => {
+    moveBackward: (params) => {
       let direction = vec3.create();
       vec3.subtract(direction, eye, at);
-      if (disableVerticalMovement) {
+      if (params.disableVerticalMovement) {
         direction[1] = 0;
       }
       vec3.normalize(direction, direction);
       movementVec = vec3.create();
-      vec3.multiply(movementVec, direction, vec3.fromValues(MOVEMENT_SPEED_FACTOR, MOVEMENT_SPEED_FACTOR, MOVEMENT_SPEED_FACTOR));
+      vec3.multiply(movementVec, direction, vec3.fromValues(params.movementSpeed, params.movementSpeed, params.movementSpeed));
       vec3.add(eye, eye, movementVec);
       vec3.add(at, at, movementVec);
     },
@@ -380,6 +339,10 @@ const createCamera = function(gl, program, eyeVector) {
 
     getAtVector: () => {
       return tiltedAt;
+    },
+
+    getUpVector: () => {
+      return up;
     },
 
     getViewMatrix: () => {
@@ -746,11 +709,17 @@ window.onload = function(){
 
   window.onkeydown = function(e){
       keyMap[e.which] = true;
-  }
+      if(e.shiftKey) {
+        keyMap['SHIFT'] = true;
+      }
+  };
 
   window.onkeyup = function(e){
        keyMap[e.which] = false;
-  }
+       if(!e.shiftKey) {
+         keyMap['SHIFT'] = false;
+       }
+  };
 
   const handleMouseMove = (e) => {
     if (e.movementX) {
@@ -793,10 +762,17 @@ window.onload = function(){
     }
 
     // check which keys that we care about are down
+
     if (keyMap['W'.charCodeAt(0)]){
-      camera.moveForward(true);
+      camera.moveForward({
+        disableVerticalMovement: true,
+        movementSpeed: keyMap['SHIFT'] ? MOVEMENT_SPEED_FACTOR_RUNNING : MOVEMENT_SPEED_FACTOR
+      });
     }else if (keyMap['S'.charCodeAt(0)]){
-      camera.moveBackward(true);
+      camera.moveBackward({
+        disableVerticalMovement: true,
+        movementSpeed: keyMap['SHIFT'] ? MOVEMENT_SPEED_FACTOR_RUNNING : MOVEMENT_SPEED_FACTOR
+      });
     }
 
     if (keyMap['A'.charCodeAt(0)]){
@@ -836,13 +812,15 @@ window.onload = function(){
     camera.apply();
     const eyeVector = camera.getEyeVector();
     const atVector = camera.getAtVector();
+    const upVector = camera.getUpVector();
     const viewMatrix = camera.getViewMatrix();
-    gl.uniform3fv(program.u_LightPosition, vec3.fromValues(eyeVector[0], eyeVector[1] , eyeVector[2]));
+    let lampVector = vec3.fromValues(eyeVector[0], eyeVector[1] + 0.15 , eyeVector[2]);
+    gl.uniform3fv(program.u_LightPosition, lampVector);
 
-    let cameraDirectionVector = vec3.create();
-    vec3.subtract(cameraDirectionVector, eyeVector, atVector);
-    vec3.normalize(cameraDirectionVector, cameraDirectionVector);
-    gl.uniform3fv(program.u_LightAxis, vec3.fromValues(cameraDirectionVector[0], cameraDirectionVector[1], cameraDirectionVector[2]));
+    let lampDirectionVector = vec3.create();
+    vec3.subtract(lampDirectionVector, lampVector, atVector);
+    vec3.normalize(lampDirectionVector, lampDirectionVector);
+    gl.uniform3fv(program.u_LightAxis, vec3.fromValues(lampDirectionVector[0], lampDirectionVector[1], lampDirectionVector[2]));
 
     reverseView = mat4.create();
     mat4.invert(reverseView, viewMatrix);
@@ -935,3 +913,11 @@ function getRandomInt(min, max) {
 function getRandom(min, max) {
   return Math.random() * (max - min) + min;
 }
+
+// from http://gizma.com/easing/
+function easeInOutQuad (t, b, c, d) {
+  t /= d/2;
+  if (t < 1) return c/2*t*t + b;
+  t--;
+  return -c/2 * (t*(t-2) - 1) + b;
+};
