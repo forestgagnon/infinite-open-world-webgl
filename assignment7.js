@@ -1,5 +1,6 @@
 //========== Forest Gagnon - CS461 HW07 - assignment7.js ==========\\
 /* Extra features: Mouse look & camera with proper pitch this time (hooray!), anisotropic filtering for the mipmap,
+ running with SHIFT key,
 *
 */
 
@@ -11,18 +12,10 @@ attribute vec2 a_TexCoord;
 uniform mat4 u_View;
 uniform mat4 u_Projection;
 uniform mat4 u_Transform;
-// uniform vec3 u_LightPosition;
-// uniform vec3 u_LightAxis;
 
 varying vec2 v_TexCoord;
-// varying vec4 v_Luminance;
 varying vec4 v_Position;
 varying vec4 v_Normal;
-
-// vec3 ambient, diffuse, light_position;
-// float lightAngleAttn;
-
-// vec3 L, N, V, H, P;
 
 void main(){
   gl_Position = u_Projection * u_View * u_Transform * a_Position;
@@ -37,7 +30,6 @@ precision mediump float;
 uniform sampler2D u_Sampler;
 uniform mat4 frag_u_Transform;
 uniform mat4 frag_u_View;
-uniform mat4 u_ReverseView;
 uniform vec3 u_LightPosition;
 uniform vec3 u_LightAxis;
 
@@ -55,8 +47,6 @@ vec3 L, N, V, H, P;
 float diffuseLightFalloff, diffuseLightFalloffMultiplier, lampSpreadFactor;
 
 void main(){
-  // gl_FragColor = texture2D(u_Sampler, v_TexCoord) * v_Luminance;
-
   light_position = (frag_u_Transform * vec4(u_LightPosition, 1.0)).xyz;
 
 	vec3 light_ambient = vec3(0.1, 0.1, 0.1);
@@ -696,7 +686,6 @@ window.onload = function(){
   program.frag_u_View = gl.getUniformLocation(program, 'frag_u_View');
   program.u_LightPosition = gl.getUniformLocation(program, 'u_LightPosition');
   program.u_LightAxis = gl.getUniformLocation(program, 'u_LightAxis');
-  program.u_ReverseView = gl.getUniformLocation(program, 'u_ReverseView');
 
   gl.enable(gl.DEPTH_TEST);
   gl.clearColor(0,0,0,1);
@@ -821,11 +810,6 @@ window.onload = function(){
     vec3.subtract(lampDirectionVector, lampVector, atVector);
     vec3.normalize(lampDirectionVector, lampDirectionVector);
     gl.uniform3fv(program.u_LightAxis, vec3.fromValues(lampDirectionVector[0], lampDirectionVector[1], lampDirectionVector[2]));
-
-    reverseView = mat4.create();
-    mat4.invert(reverseView, viewMatrix);
-    mat4.transpose(reverseView, reverseView);
-    gl.uniformMatrix4fv(program.u_ReverseView, false, reverseView);
 
     //Initialize scenegraph and drawing functions
     let rootNode = createScenegraph(gl, program);
