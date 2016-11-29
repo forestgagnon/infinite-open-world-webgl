@@ -94,7 +94,8 @@ const LIGHT_PINK = rgbToFloats(250, 159, 181);
 const DARK_GREEN = rgbToFloats(49, 163, 84);
 const LIGHT_GREEN = rgbToFloats(173, 221, 142);
 
-const GRID_SIZE = 36;
+// const GRID_SIZE = 36;
+const GRID_SIZE = 6;
 const HALF_GRID_SIZE = GRID_SIZE / 2; //don't compute this everywhere
 const PERSPECTIVE_NEAR_PLANE = 0.1;
 const PERSPECTIVE_FAR_PLANE = 100;
@@ -398,7 +399,7 @@ function createGrid(gl, program) {
   }
 }
 
-function createWall(gl, program) {
+function createWall(gl, program, texNum) {
   let wall = {
     vertices: new Float32Array([
       BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, 0,0, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE, // front face
@@ -455,7 +456,7 @@ function createWall(gl, program) {
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, wall.indices, gl.STATIC_DRAW);
 
   return () => {
-    gl.uniform1i(program.u_Sampler, 0);
+    gl.uniform1i(program.u_Sampler, texNum);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, wall.vertexBuffer);
     gl.vertexAttribPointer(program.a_Position, wall.dimensions, gl.FLOAT, false, 0,0);
@@ -471,7 +472,7 @@ function createWall(gl, program) {
   };
 }
 
-function createFloor(gl, program) {
+function createFloor(gl, program, texNum) {
   let floor = {
     vertices: new Float32Array([
       BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, 0,0, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE, // front face
@@ -529,7 +530,7 @@ function createFloor(gl, program) {
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, floor.indices, gl.STATIC_DRAW);
 
   return () => {
-    gl.uniform1i(program.u_Sampler, 1);
+    gl.uniform1i(program.u_Sampler, texNum);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, floor.vertexBuffer);
     gl.vertexAttribPointer(program.a_Position, floor.dimensions, gl.FLOAT, false, 0,0);
@@ -696,8 +697,10 @@ window.onload = function(){
 
   let mazeObject = buildMaze(GRID_SIZE);
   let camera = createCamera(gl, program, vec3.fromValues(mazeObject.initRow * BLOCKSIZE + BLOCKSIZE/2, 0.5, mazeObject.initCol * BLOCKSIZE + BLOCKSIZE/2));
-  let wall = createWall(gl, program);
-  let floor = createFloor(gl, program);
+  let wall = createWall(gl, program, 0);
+  let fireWall = createWall(gl, program, 3);
+  let floor = createFloor(gl, program, 1);
+  let fireFloor = createFloor(gl, program, 3);
   let roof = createRoof(gl, program);
 
   let render = function(){
@@ -802,8 +805,12 @@ window.onload = function(){
             transformNode.add('shape', roof);
             break;
           case MAZE_CONSTANTS.END:
-            transformNode.add('shape', floor);
+            let t = mat4.create();
             transformNode.add('shape', roof);
+            mat4.translate(t, t, vec3.fromValues(0, -BLOCKSIZE, 0));
+            let tNode = transformNode.add('transformation', t);
+            tNode.add('shape', fireWall);
+            tNode.add('shape', fireFloor);
             break;
         }
       }
@@ -817,7 +824,8 @@ window.onload = function(){
   Promise.all([
     initializeTexture(gl, gl.TEXTURE0, 'rockfloorbig.jpg'),
      initializeTexture(gl, gl.TEXTURE1, 'floor.png'),
-     initializeTexture(gl, gl.TEXTURE2, 'roof.jpg')
+     initializeTexture(gl, gl.TEXTURE2, 'roof.jpg'),
+     initializeTexture(gl, gl.TEXTURE3, 'fire2.jpg')
   ])
     .then(() => render())
     .catch(function (error) {alert('Failed to load texture '+  error.message);});
