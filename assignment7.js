@@ -1,6 +1,6 @@
 //========== Forest Gagnon - CS461 HW07 - assignment7.js ==========\\
-/* Extra features: Mouse look & camera with proper pitch this time (hooray!), anisotropic filtering for the mipmap,
- running with SHIFT key,
+/* Extra features: Mouse Look & camera with proper pitch this time (hooray!), Anisotropic Filtering for the mipmap,
+ Running with SHIFT key, Basic Movement Clipping (for walls) (you can clip through corners sometimes if you really try)
 *
 */
 
@@ -33,7 +33,6 @@ uniform mat4 frag_u_View;
 uniform vec3 u_LightPosition;
 uniform vec3 u_LightAxis;
 
-// varying vec4 v_Luminance;
 varying vec4 v_Position;
 varying vec4 v_Normal;
 varying vec2 v_TexCoord;
@@ -103,6 +102,7 @@ const TURN_DEGREES = Math.PI / 75;
 const MOUSE_SENSITIVITY = 0.00025;
 const BLOCKSIZE = 2.0;
 const NOCLIP = false;
+const WALL_CLIP_DISTANCE = 0.2;
 const MOVEMENT_SPEED_FACTOR = 0.025;
 const MOVEMENT_SPEED_FACTOR_RUNNING = MOVEMENT_SPEED_FACTOR * 2;
 
@@ -216,6 +216,15 @@ const createCamera = function(gl, program, eyeVector) {
   vec3.add(at, eye, vec3.fromValues(10, 0, 10));
   let pitch = 0;
   let view;
+
+  function eyeIsValid(eye, movementVec, maze) {
+    let correctionAmount = {
+      x: movementVec[0] > 0 ? WALL_CLIP_DISTANCE : -WALL_CLIP_DISTANCE,
+      z: movementVec[2] > 0 ? WALL_CLIP_DISTANCE : -WALL_CLIP_DISTANCE,
+    };
+    let correctedEye = vec3.fromValues(eye[0]+correctionAmount.x, eye[1], eye[2]+correctionAmount.z);
+    return maze[Math.floor(Math.abs(correctedEye[0]/BLOCKSIZE))][Math.floor(Math.abs(correctedEye[2]/BLOCKSIZE))] !== MAZE_CONSTANTS.WALL;
+  }
   return {
     apply: () => {
       view = mat4.create();
@@ -246,9 +255,14 @@ const createCamera = function(gl, program, eyeVector) {
       }
       vec3.normalize(direction, direction);
       movementVec = vec3.create();
+      let newEye = vec3.create();
       vec3.multiply(movementVec, direction, vec3.fromValues(params.movementSpeed, params.movementSpeed, params.movementSpeed));
-      vec3.add(eye, eye, movementVec);
-      vec3.add(at, at, movementVec);
+
+      vec3.add(newEye, eye, movementVec);
+      if (NOCLIP || eyeIsValid(newEye, movementVec, params.maze)) {
+        vec3.add(eye, eye, movementVec);
+        vec3.add(at, at, movementVec);
+      }
     },
     moveBackward: (params) => {
       let direction = vec3.create();
@@ -258,12 +272,16 @@ const createCamera = function(gl, program, eyeVector) {
       }
       vec3.normalize(direction, direction);
       movementVec = vec3.create();
+      let newEye = vec3.create();
       vec3.multiply(movementVec, direction, vec3.fromValues(params.movementSpeed, params.movementSpeed, params.movementSpeed));
-      vec3.add(eye, eye, movementVec);
-      vec3.add(at, at, movementVec);
+      vec3.add(newEye, eye, movementVec);
+      if (NOCLIP || eyeIsValid(newEye, movementVec, params.maze)) {
+        vec3.add(eye, eye, movementVec);
+        vec3.add(at, at, movementVec);
+      }
     },
 
-    strafeRight: () => {
+    strafeRight: (params) => {
       let strafeAxis = vec3.create();
       let directionNormal = vec3.create();
       vec3.subtract(directionNormal, at, eye);
@@ -274,11 +292,15 @@ const createCamera = function(gl, program, eyeVector) {
       let movementVec = vec3.create();
       vec3.add(movementVec, movementVec, strafeAxis)
       vec3.multiply(movementVec, movementVec, vec3.fromValues(STRAFE_FACTOR, 0, STRAFE_FACTOR));
-      vec3.add(eye, eye, movementVec);
-      vec3.add(at, at, movementVec);
+      let newEye = vec3.create();
+      vec3.add(newEye, eye, movementVec);
+      if (NOCLIP || eyeIsValid(newEye, movementVec, params.maze)) {
+        vec3.add(eye, eye, movementVec);
+        vec3.add(at, at, movementVec);
+      }
     },
 
-    strafeLeft: () => {
+    strafeLeft: (params) => {
       let strafeAxis = vec3.create();
       let directionNormal = vec3.create();
       vec3.subtract(directionNormal, at, eye);
@@ -289,8 +311,12 @@ const createCamera = function(gl, program, eyeVector) {
       let movementVec = vec3.create();
       vec3.add(movementVec, movementVec, strafeAxis)
       vec3.multiply(movementVec, movementVec, vec3.fromValues(-STRAFE_FACTOR, 0, -STRAFE_FACTOR));
-      vec3.add(eye, eye, movementVec);
-      vec3.add(at, at, movementVec);
+      let newEye = vec3.create();
+      vec3.add(newEye, eye, movementVec);
+      if (NOCLIP || eyeIsValid(newEye, movementVec, params.maze)) {
+        vec3.add(eye, eye, movementVec);
+        vec3.add(at, at, movementVec);
+      }
     },
 
     turn: (radians) => {
@@ -593,71 +619,6 @@ function createRoof(gl, program) {
   };
 }
 
-
-function createCube(gl, program) {
-  //Structure borrowed from Prof. Andrews' color cube code
-  let cube = {
-    vertices : new Float32Array([
-          1.0,  1.0,  1.0,
-          0.0,  1.0,  1.0,
-          0.0,  0.0,  1.0,
-          1.0, 0.0,  1.0,
-
-          1.0,  1.0,  0.0,
-          0.0,  1.0,  0.0,
-          0.0,  0.0,  0.0,
-          1.0,  0.0,  0.0
-    ]),
-    colors: new Float32Array([
-      LIGHT_PINK.r, LIGHT_PINK.g, LIGHT_PINK.b,
-      LIGHT_PINK.r, LIGHT_PINK.g, LIGHT_PINK.b,
-      DARK_PINK.r, DARK_PINK.g, DARK_PINK.b,
-      DARK_PINK.r, DARK_PINK.g, DARK_PINK.b,
-
-      LIGHT_PINK.r, LIGHT_PINK.g, LIGHT_PINK.b,
-      LIGHT_PINK.r, LIGHT_PINK.g, LIGHT_PINK.b,
-      DARK_PINK.r, DARK_PINK.g, DARK_PINK.b,
-      DARK_PINK.r, DARK_PINK.g, DARK_PINK.b
-    ]),
-
-    indices: new Uint8Array([
-       0,1,2,  0,2,3, // front face
-       0,7,4,  0,3,7,   // right face
-       1,5,6,  1,6,2, // left face
-       0,4,5,  0,5,1, // top face
-       3,2,6,  3,6,7, // bottom face
-       4,7,6,  4,6,5 // back face
-
-    ]),
-    dimensions: 3,
-    numPoints: 8
-  };
-  cube.vertexBuffer = gl.createBuffer();
-  cube.colorBuffer = gl.createBuffer();
-  cube.indexBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, cube.vertexBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, cube.vertices, gl.STATIC_DRAW);
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, cube.colorBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, cube.colors, gl.STATIC_DRAW);
-
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cube.indexBuffer);
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, cube.indices, gl.STATIC_DRAW);
-
-  return () => {
-    gl.bindBuffer(gl.ARRAY_BUFFER, cube.vertexBuffer);
-    // associate it with our position attribute
-    gl.vertexAttribPointer(program.a_Position, cube.dimensions, gl.FLOAT, false, 0,0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, cube.colorBuffer);
-    // associate it with our position attribute
-    gl.vertexAttribPointer(program.a_Color, cube.dimensions, gl.FLOAT, false, 0,0);
-
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cube.indexBuffer);
-    gl.drawElements(gl.TRIANGLES, cube.indices.length, gl.UNSIGNED_BYTE, 0);
-  };
-}
-
 //========== MAIN ONLOAD FUNCTION ==========\\
 window.onload = function(){
 
@@ -755,19 +716,25 @@ window.onload = function(){
     if (keyMap['W'.charCodeAt(0)]){
       camera.moveForward({
         disableVerticalMovement: true,
-        movementSpeed: keyMap['SHIFT'] ? MOVEMENT_SPEED_FACTOR_RUNNING : MOVEMENT_SPEED_FACTOR
+        movementSpeed: keyMap['SHIFT'] ? MOVEMENT_SPEED_FACTOR_RUNNING : MOVEMENT_SPEED_FACTOR,
+        maze: mazeObject.maze
       });
     }else if (keyMap['S'.charCodeAt(0)]){
       camera.moveBackward({
         disableVerticalMovement: true,
-        movementSpeed: keyMap['SHIFT'] ? MOVEMENT_SPEED_FACTOR_RUNNING : MOVEMENT_SPEED_FACTOR
+        movementSpeed: keyMap['SHIFT'] ? MOVEMENT_SPEED_FACTOR_RUNNING : MOVEMENT_SPEED_FACTOR,
+        maze: mazeObject.maze
       });
     }
 
     if (keyMap['A'.charCodeAt(0)]){
-      camera.strafeLeft();
+      camera.strafeLeft({
+        maze: mazeObject.maze
+      });
     }else if (keyMap['D'.charCodeAt(0)]){
-      camera.strafeRight();
+      camera.strafeRight({
+        maze: mazeObject.maze
+      });
     }
 
     if(keyMap[38]) {
@@ -815,7 +782,6 @@ window.onload = function(){
     let rootNode = createScenegraph(gl, program);
 
     let mazeTransform = mat4.create();
-    //mat4.translate(mazeTransform, mazeTransform, vec3.fromValues(-HALF_GRID_SIZE, 0, -HALF_GRID_SIZE));
     let mazeNode = rootNode.add('transformation', mazeTransform)
 
     for (let row = 0; row < mazeObject.maze.length; row++) {
