@@ -1,6 +1,7 @@
 //========== Forest Gagnon - CS461 HW07 - assignment7.js ==========\\
 /* Extra features: Mouse Look & camera with proper pitch this time (hooray!), Anisotropic Filtering for the mipmap,
- Running with SHIFT key, Basic Movement Clipping (for walls) (you can clip through corners sometimes if you really try)
+ Running with SHIFT key, Basic Movement Clipping (for walls) (you can clip through corners sometimes if you really try),
+ Objective: Kill yourself by reaching the end of the maze and walking into the fire pit
 *
 */
 
@@ -94,8 +95,7 @@ const LIGHT_PINK = rgbToFloats(250, 159, 181);
 const DARK_GREEN = rgbToFloats(49, 163, 84);
 const LIGHT_GREEN = rgbToFloats(173, 221, 142);
 
-// const GRID_SIZE = 36;
-const GRID_SIZE = 6;
+const GRID_SIZE = 12;
 const HALF_GRID_SIZE = GRID_SIZE / 2; //don't compute this everywhere
 const PERSPECTIVE_NEAR_PLANE = 0.1;
 const PERSPECTIVE_FAR_PLANE = 100;
@@ -150,7 +150,7 @@ function buildMaze(size) {
 
   maze[lastDrawnCell[0]][lastDrawnCell[1]] = MAZE_CONSTANTS.END;
 
-  return { maze: maze, initRow: initCellRow, initCol: initCellCol };
+  return { maze: maze, initRow: initCellRow, initCol: initCellCol, endRow: lastDrawnCell[0], endCol: lastDrawnCell[1] };
 }
 
 const createScenegraph = function(gl, program){
@@ -364,6 +364,10 @@ const createCamera = function(gl, program, eyeVector) {
 
     getViewMatrix: () => {
       return view;
+    },
+
+    setEye: (newEye) => {
+      eye = newEye;
     }
   }
 };
@@ -768,8 +772,14 @@ window.onload = function(){
     mat4.perspective(projection, Math.PI/3, canvas.width/canvas.height, PERSPECTIVE_NEAR_PLANE, PERSPECTIVE_FAR_PLANE);
     gl.uniformMatrix4fv(program.u_Projection, false, projection);
 
-    camera.apply();
     const eyeVector = camera.getEyeVector();
+
+    //Lock the player into the fire pit when they reach the end
+    if (mazeObject.maze[Math.floor(Math.abs(eyeVector[0]/BLOCKSIZE))][Math.floor(Math.abs(eyeVector[2]/BLOCKSIZE))] === MAZE_CONSTANTS.END) {
+      camera.setEye(vec3.fromValues(mazeObject.endRow * BLOCKSIZE + BLOCKSIZE/2, 0.5-BLOCKSIZE, mazeObject.endCol * BLOCKSIZE + BLOCKSIZE/2));
+    }
+
+    camera.apply();
     const atVector = camera.getAtVector();
     const upVector = camera.getUpVector();
     const viewMatrix = camera.getViewMatrix();
