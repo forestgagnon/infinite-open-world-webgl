@@ -57,12 +57,14 @@ const DARK_GREEN = rgbToFloats(49, 163, 84);
 const LIGHT_GREEN = rgbToFloats(173, 221, 142);
 
 const GRID_SIZE = 12;
+const BLOCKSIZE = 0.5;
+const TERRAIN_CHUNK_SIZE = 64;
+
 const HALF_GRID_SIZE = GRID_SIZE / 2; //don't compute this everywhere
 const PERSPECTIVE_NEAR_PLANE = 0.1;
 const PERSPECTIVE_FAR_PLANE = 100;
 const TURN_DEGREES = Math.PI / 75;
 const MOUSE_SENSITIVITY = 0.00025;
-const BLOCKSIZE = 0.5;
 const NOCLIP = false;
 const WALL_CLIP_DISTANCE = 0.2;
 const MOVEMENT_SPEED_FACTOR = 0.025;
@@ -356,6 +358,30 @@ function createBlock(gl, program, texNum) {
   };
 }
 
+function generateTerrainChunk(x, z) {
+  const xModifier = TERRAIN_CHUNK_SIZE * x;
+  const zModifier = TERRAIN_CHUNK_SIZE * z;
+  let chunk = [];
+  for (let row = 0; row < TERRAIN_CHUNK_SIZE; row++) {
+    chunk[row] = [];
+    for (let col = 0; col < TERRAIN_CHUNK_SIZE; col++) {
+      chunk[row][col] = noise.simplex2(xModifier + row, zModifier + col);
+    }
+  }
+  return chunk;
+}
+
+function addTerrainChunkToNode(node, chunk, blocks) {
+  for (let row = 0; row < chunk.length; row++) {
+    for (let col = 0; col < chunk[row].length; col++) {
+      let translate = mat4.create();
+      mat4.translate(translate, translate, vec3.fromValues(row * BLOCKSIZE, chunk[row][col], col * BLOCKSIZE));
+      let heightTransformNode = node.add('transformation', translate);
+      heightTransformNode.add('shape', blocks.grass);
+    }
+  }
+}
+
 
 //========== MAIN ONLOAD FUNCTION ==========\\
 window.onload = function(){
@@ -428,9 +454,15 @@ window.onload = function(){
   gl.enableVertexAttribArray(program.a_Position);
   gl.enableVertexAttribArray(program.a_TexCoord);
 
+  noise.seed(Math.random());
+
+
   let camera = createCamera(gl, program, vec3.fromValues(0, 0.5, 0));
   // let grid = createGrid(gl, program);
-  let grassBlock = createBlock(gl, program, 0);
+  const blocks = {
+    grass: createBlock(gl, program, 0),
+    fire: createBlock(gl, program, 1)
+  };
 
   //Initialize scenegraph and drawing functions
   let rootNode = createScenegraph(gl, program);
@@ -440,7 +472,12 @@ window.onload = function(){
 
   // terrainNode.add('shape', grid);
 
-  terrainNode.add('shape', grassBlock);
+  let testChunk = generateTerrainChunk(0, 0);
+  addTerrainChunkToNode(terrainNode, testChunk, blocks);
+
+  console.log(testChunk);
+
+  // terrainNode.add('shape', grassBlock);
 
   // for (let row = 0; row < mazeObject.maze.length; row++) {
   //   for (let col = 0; col < mazeObject.maze.length; col++) {
@@ -547,10 +584,8 @@ window.onload = function(){
   };
 
   Promise.all([
-    initializeTexture(gl, gl.TEXTURE0, 'rockfloorbig.jpg'),
-     initializeTexture(gl, gl.TEXTURE1, 'floor.png'),
-     initializeTexture(gl, gl.TEXTURE2, 'roof.jpg'),
-     initializeTexture(gl, gl.TEXTURE3, 'fire2.jpg')
+    initializeTexture(gl, gl.TEXTURE0, 'grass.png'),
+     initializeTexture(gl, gl.TEXTURE1, 'fire2.jpg')
   ])
     .then(() => render())
     .catch(function (error) {alert('Failed to load texture '+  error.message);});
