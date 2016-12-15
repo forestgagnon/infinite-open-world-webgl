@@ -1,7 +1,5 @@
-//========== Forest Gagnon - CS461 Final Project - assignment7.js ==========\\
-/* Extra features: Mouse Look & camera with proper pitch this time (hooray!), Anisotropic Filtering for the mipmap,
- Running with SHIFT key, Basic Movement Clipping (for walls) (you can clip through corners sometimes if you really try),
- Objective: Kill yourself by reaching the end of the maze and getting trapped in the fire pit
+//========== Forest Gagnon - CS461 Final Project - final-project.js ==========\\
+/* Description TBD
 *
 */
 
