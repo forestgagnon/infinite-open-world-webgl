@@ -63,7 +63,8 @@ const GRID_SIZE = 12;
 const BLOCKSIZE = 0.5;
 const TERRAIN_CHUNK_SIZE = 64;
 const CHUNK_CUTOFF_DISTANCE = 1;
-const TERRAIN_MAX_DEPTH = -5;
+const TERRAIN_MAX_DEPTH = -4;
+const WATER_LEVEL = TERRAIN_MAX_DEPTH + 1;
 
 const HALF_GRID_SIZE = GRID_SIZE / 2; //don't compute this everywhere
 const PERSPECTIVE_NEAR_PLANE = 0.1;
@@ -308,7 +309,24 @@ function createGrid(gl, program) {
   }
 }
 
-function createBlock(gl, program, texNum, offsets) {
+function createBlock(gl, program, params) {
+  let { texNum, offsets, enabledFaces } = params;
+  let indices;
+
+  if (enabledFaces !== undefined) {
+    indices = new Uint8Array(enabledFaces);
+  }
+  else {
+    indices = new Uint8Array([
+      0,1,2,  0,2,3, // front face
+      4,5,6,  4,6,7,   // right face
+     8,9,10, 8,10,11, // back face
+     12,13,14,  12,14,15, // left face
+     16,17,18, 16,18,19, // top face
+     20,21,22, 20,22,23 // bottom face
+
+    ])
+  }
 
   let block = {
     vertices: new Float32Array([
@@ -338,15 +356,7 @@ function createBlock(gl, program, texNum, offsets) {
       BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // bottom face
     ]),
 
-    indices: new Uint8Array([
-      0,1,2,  0,2,3, // front face
-      4,5,6,  4,6,7,   // right face
-     8,9,10, 8,10,11, // back face
-     12,13,14,  12,14,15, // left face
-     16,17,18, 16,18,19, // top face
-     20,21,22, 20,22,23 // bottom face
-
-    ]),
+    indices: indices,
 
     offsets: new Float32Array(offsets),
     dimensions: 3
@@ -396,8 +406,7 @@ function createBlock(gl, program, texNum, offsets) {
 }
 
 function generateTerrainChunk(gl, program, x, z) {
-  let grassOffsets = [];
-  let stoneOffsets = [];
+  let grassOffsets = [], stoneOffsets = [], waterOffsets = [];
   const xModifier = TERRAIN_CHUNK_SIZE * x;
   const zModifier = TERRAIN_CHUNK_SIZE * z;
   let chunk = [];
@@ -406,18 +415,44 @@ function generateTerrainChunk(gl, program, x, z) {
     for (let col = 0; col < TERRAIN_CHUNK_SIZE; col++) {
       let height = Math.round(5 * noise.simplex2((xModifier + row) / 50, (zModifier + col) / 50));
       chunk[row][col] = height;
-      while (height > TERRAIN_MAX_DEPTH) {
+      while (height > WATER_LEVEL) {
         grassOffsets.push(row, height, col);
         height--;
       }
-      stoneOffsets.push(row, height, col);
+      waterOffsets.push(row, WATER_LEVEL, col);
+      stoneOffsets.push(row, TERRAIN_MAX_DEPTH, col);
     }
   }
   return {
     positions: chunk,
     blocks: {
-      grass: createBlock(gl, program, 0, grassOffsets),
-      stone: createBlock(gl, program, 2, stoneOffsets)
+      grassTop: createBlock(gl, program, {
+        texNum:  0,
+        offsets: grassOffsets,
+        enabledFaces: [
+         16,17,18, 16,18,19, // top face
+        ]
+      }),
+      grassSides: createBlock(gl, program, {
+        texNum:  1,
+        offsets: grassOffsets,
+        enabledFaces: [
+          0,1,2,  0,2,3, // front face
+          4,5,6,  4,6,7,   // right face
+         8,9,10, 8,10,11, // back face
+         12,13,14,  12,14,15, // left face
+        //  16,17,18, 16,18,19, // top face
+         20,21,22, 20,22,23 // bottom face
+        ]
+      }),
+      stone: createBlock(gl, program, {
+        texNum:  2,
+        offsets: stoneOffsets
+      }),
+      water: createBlock(gl, program, {
+        texNum:  3,
+        offsets: waterOffsets
+      })
     }
   }
 }
@@ -425,13 +460,23 @@ function generateTerrainChunk(gl, program, x, z) {
 function addTerrainChunkToNode(node, chunk) {
   let { positions, blocks } = chunk;
   let chunkNode = node.add('transformation', mat4.create());
-  let grassNode = chunkNode.add('shape', {
-    shapeFunc: blocks.grass,
+  let grassTopNode = chunkNode.add('shape', {
+    shapeFunc: blocks.grassTop,
+    params: {
+    }
+  });
+  let grassSidesNode = chunkNode.add('shape', {
+    shapeFunc: blocks.grassSides,
     params: {
     }
   });
   let stoneNode = chunkNode.add('shape', {
     shapeFunc: blocks.stone,
+    params: {
+    }
+  });
+  let waterNode = chunkNode.add('shape', {
+    shapeFunc: blocks.water,
     params: {
     }
   });
@@ -680,8 +725,10 @@ window.onload = function(){
 
   Promise.all([
     initializeTexture(gl, gl.TEXTURE0, 'grass.png'),
-     initializeTexture(gl, gl.TEXTURE1, 'fire2.jpg'),
-     initializeTexture(gl, gl.TEXTURE2, 'stone.png')
+    initializeTexture(gl, gl.TEXTURE1, 'dirt.jpg'),
+    initializeTexture(gl, gl.TEXTURE2, 'stone.png'),
+    initializeTexture(gl, gl.TEXTURE3, 'water.png'),
+    initializeTexture(gl, gl.TEXTURE4, 'fire2.jpg')
   ])
     .then(() => render())
     .catch(function (error) {alert('Failed to load texture '+  error.message);});
