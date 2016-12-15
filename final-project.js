@@ -35,9 +35,23 @@ uniform sampler2D u_Sampler;
 
 varying vec4 v_Position;
 varying vec2 v_TexCoord;
+float fogDensity = 0.05;
 
 void main(){
-  gl_FragColor = texture2D(u_Sampler, v_TexCoord);
+
+  //Fog code taken from http://www.ozone3d.net/tutorials/glsl_fog/p04.php
+  const float LOG2 = 1.442695;
+  float z = gl_FragCoord.z / gl_FragCoord.w;
+  float fogFactor = exp2( -fogDensity *
+    fogDensity *
+    z *
+    z *
+    LOG2 );
+  fogFactor = clamp(fogFactor, 0.0, 1.0);
+  vec4 fogColor = vec4(0,0,0,1);
+
+  gl_FragColor = mix(fogColor, texture2D(u_Sampler, v_TexCoord), fogFactor);
+  // gl_FragColor = texture2D(u_Sampler, v_TexCoord);
   // gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
 }`;
 
@@ -62,7 +76,7 @@ const LIGHT_GREEN = rgbToFloats(173, 221, 142);
 const GRID_SIZE = 12;
 const BLOCKSIZE = 0.5;
 const TERRAIN_CHUNK_SIZE = 64;
-const CHUNK_CUTOFF_DISTANCE = 1;
+const CHUNK_CUTOFF_DISTANCE = 2;
 const TERRAIN_MAX_DEPTH = -4;
 const WATER_LEVEL = TERRAIN_MAX_DEPTH + 1;
 
