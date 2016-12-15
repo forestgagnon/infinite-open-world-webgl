@@ -401,23 +401,26 @@ function generateTerrainChunk(gl, program, x, z) {
 
 function addTerrainChunkToNode(node, chunk) {
   let { positions, blocks } = chunk;
-  node.add('shape', {
+  let chunkNode = node.add('shape', {
     shapeFunc: blocks.grass,
     params: {
     }
   });
+  return chunkNode;
 }
 
 function positionAndAddChunk(gl, program, node, x, z) {
   let chunk = generateTerrainChunk(gl, program, x, z);
-  addTerrainChunkToNode(node, chunk);
   let translate = mat4.create();
   let xTranslate = (TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2 * x;
   let zTranslate = (TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2 * z;
   mat4.translate(translate, translate, vec3.fromValues(xTranslate, 0, zTranslate));
   let translateNode = node.add('transformation', translate);
-  addTerrainChunkToNode(translateNode, chunk);
-  return chunk;
+  let chunkNode = addTerrainChunkToNode(translateNode, chunk);
+  return {
+    chunk: chunk,
+    node: chunkNode
+  };
 }
 
 
@@ -519,11 +522,14 @@ window.onload = function(){
 
 
   let chunkArray = [];
-  //generate initial chunks
+  let nodeArray = [];
   for (let x = 0; x < 2; x++) {
     chunkArray[x] = [];
+    nodeArray[x] = [];
     for (let z = 0; z < 2; z++) {
-      chunkArray[x][z] = positionAndAddChunk(gl, program, terrainNode, x, z);
+      let { chunk, node } = positionAndAddChunk(gl, program, terrainNode, x, z);
+      chunkArray[x][z] = chunk
+      nodeArray[x][z] = node;
     }
   }
 
@@ -601,6 +607,7 @@ window.onload = function(){
     // }
 
     let neighborChunks = [
+      { x: currentChunkCoords.x, z: currentChunkCoords.z },
       { x: currentChunkCoords.x - 1, z: currentChunkCoords.z - 1 },
       { x: currentChunkCoords.x + 1, z: currentChunkCoords.z - 1 },
       { x: currentChunkCoords.x + 1, z: currentChunkCoords.z + 1 },
@@ -611,12 +618,13 @@ window.onload = function(){
       { x: currentChunkCoords.x - 1, z: currentChunkCoords.z },
     ];
 
-    neighborChunks.forEach((chunk) => {
-      if (!chunkArray[chunk.x]) {
-        chunkArray[chunk.x] = [];
+    neighborChunks.forEach((chunkCoordinate) => {
+      if (!chunkArray[chunkCoordinate.x]) {
+        chunkArray[chunkCoordinate.x] = [];
       }
-      if (!chunkArray[chunk.x][chunk.z]) {
-        chunkArray[chunk.x][chunk.z] = positionAndAddChunk(gl, program, terrainNode, chunk.x, chunk.z);
+      if (!chunkArray[chunkCoordinate.x][chunkCoordinate.z]) {
+        let { chunk, node } = positionAndAddChunk(gl, program, terrainNode, chunkCoordinate.x, chunkCoordinate.z);
+        chunkArray[chunkCoordinate.x][chunkCoordinate.z] = chunk;
       }
     });
 
