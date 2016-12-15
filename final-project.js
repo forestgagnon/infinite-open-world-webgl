@@ -35,7 +35,7 @@ uniform sampler2D u_Sampler;
 
 varying vec4 v_Position;
 varying vec2 v_TexCoord;
-float fogDensity = 0.05;
+float fogDensity = 0.035;
 
 void main(){
 
@@ -621,8 +621,9 @@ window.onload = function(){
     }
   }
 
-
+  let lastDeepChunkCheck = 0;
   let render = function(){
+
 
     if (mouseMovementInfo.turnRadians !== 0) {
       camera.turn(mouseMovementInfo.turnRadians);
@@ -706,6 +707,8 @@ window.onload = function(){
       { x: currentChunkCoords.x - 1, z: currentChunkCoords.z },
     ];
 
+    const shouldCheckDeepNeighbors = Date.now() - lastDeepChunkCheck > 1000;
+
     neighborChunks.forEach((chunkCoordinate) => {
       if (allChunks[chunkCoordinate.x] === undefined) {
         allChunks[chunkCoordinate.x] = {};
@@ -715,6 +718,31 @@ window.onload = function(){
         let { chunk, node } = positionAndAddChunk(gl, program, terrainNode, chunkCoordinate.x, chunkCoordinate.z);
         allChunks[chunkCoordinate.x][chunkCoordinate.z] = chunk;
         allChunkNodes[chunkCoordinate.x][chunkCoordinate.z] = node;
+      }
+      //Check deep neighbors every second, not every frame (expensive)
+      if (shouldCheckDeepNeighbors) {
+        let deepNeighborChunks = [
+          { x: chunkCoordinate.x - 1, z: chunkCoordinate.z - 1 },
+          { x: chunkCoordinate.x + 1, z: chunkCoordinate.z - 1 },
+          { x: chunkCoordinate.x + 1, z: chunkCoordinate.z + 1 },
+          { x: chunkCoordinate.x - 1, z: chunkCoordinate.z + 1 },
+          { x: chunkCoordinate.x, z: chunkCoordinate.z + 1 },
+          { x: chunkCoordinate.x, z: chunkCoordinate.z - 1 },
+          { x: chunkCoordinate.x + 1, z: chunkCoordinate.z },
+          { x: chunkCoordinate.x - 1, z: chunkCoordinate.z },
+        ];
+        deepNeighborChunks.forEach((chunkCoordinate) => {
+          if (allChunks[chunkCoordinate.x] === undefined) {
+            allChunks[chunkCoordinate.x] = {};
+            allChunkNodes[chunkCoordinate.x] = {};
+          }
+          if (allChunks[chunkCoordinate.x][chunkCoordinate.z] === undefined) {
+            let { chunk, node } = positionAndAddChunk(gl, program, terrainNode, chunkCoordinate.x, chunkCoordinate.z);
+            allChunks[chunkCoordinate.x][chunkCoordinate.z] = chunk;
+            allChunkNodes[chunkCoordinate.x][chunkCoordinate.z] = node;
+          }
+        });
+        lastDeepChunkCheck = Date.now();
       }
     });
 
