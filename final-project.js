@@ -62,6 +62,7 @@ const LIGHT_GREEN = rgbToFloats(173, 221, 142);
 const GRID_SIZE = 12;
 const BLOCKSIZE = 0.5;
 const TERRAIN_CHUNK_SIZE = 64;
+const CHUNK_CUTOFF_DISTANCE = 1;
 
 const HALF_GRID_SIZE = GRID_SIZE / 2; //don't compute this everywhere
 const PERSPECTIVE_NEAR_PLANE = 0.1;
@@ -70,7 +71,7 @@ const TURN_DEGREES = Math.PI / 75;
 const MOUSE_SENSITIVITY = 0.00025;
 const NOCLIP = false;
 const WALL_CLIP_DISTANCE = 0.2;
-const MOVEMENT_SPEED_FACTOR = 0.025;
+const MOVEMENT_SPEED_FACTOR = 0.05;
 const MOVEMENT_SPEED_FACTOR_RUNNING = MOVEMENT_SPEED_FACTOR * 2;
 
 const createScenegraph = function(gl, program){
@@ -110,9 +111,18 @@ const createScenegraph = function(gl, program){
   };
 
   let createShapeNode = function(shapeFunc, params){
+    let enabled = true;
     return {
-      apply: () =>{
-        shapeFunc(params);
+      apply: () => {
+        if(enabled) {
+          shapeFunc(params);
+        }
+      },
+      enable: () => {
+        enabled = true;
+      },
+      disable: () => {
+        enabled = false;
       }
 
     };
@@ -412,8 +422,8 @@ function addTerrainChunkToNode(node, chunk) {
 function positionAndAddChunk(gl, program, node, x, z) {
   let chunk = generateTerrainChunk(gl, program, x, z);
   let translate = mat4.create();
-  let xTranslate = (TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2 * x;
-  let zTranslate = (TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2 * z;
+  let xTranslate = ((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 1.5 * x);
+  let zTranslate = ((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 1.5 * z);
   mat4.translate(translate, translate, vec3.fromValues(xTranslate, 0, zTranslate));
   let translateNode = node.add('transformation', translate);
   let chunkNode = addTerrainChunkToNode(translateNode, chunk);
@@ -521,15 +531,15 @@ window.onload = function(){
   // terrainNode.add('shape', grid);
 
 
-  let chunkArray = [];
-  let nodeArray = [];
+  let allChunks = {};
+  let allChunkNodes = {};
   for (let x = 0; x < 2; x++) {
-    chunkArray[x] = [];
-    nodeArray[x] = [];
+    allChunks[x] = {};
+    allChunkNodes[x] = {};
     for (let z = 0; z < 2; z++) {
       let { chunk, node } = positionAndAddChunk(gl, program, terrainNode, x, z);
-      chunkArray[x][z] = chunk
-      nodeArray[x][z] = node;
+      allChunks[x][z] = chunk
+      allChunkNodes[x][z] = node;
     }
   }
 
@@ -596,8 +606,8 @@ window.onload = function(){
     gl.uniformMatrix4fv(program.u_Projection, false, projection);
 
     const eyeVector = camera.getEyeVector();
-    let currentChunkCoords = { x: Math.floor(eyeVector[0] / ((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2)), z: Math.floor(eyeVector[2] / ((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2)) };
-    let currentChunk = chunkArray[currentChunkCoords.x][currentChunkCoords.z];
+    let currentChunkCoords = { x: Math.floor(eyeVector[0] / ((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 1.5)), z: Math.floor(eyeVector[2] / ((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 1.5)) };
+    let currentChunk = allChunks[currentChunkCoords.x][currentChunkCoords.z];
     // let currentBlockCoords = { x: Math.floor(eyeVector[0] - (((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2) * currentChunkCoords.x)), z: Math.floor(eyeVector[2] / ((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2)) };
     console.log(currentChunkCoords);
 
@@ -619,13 +629,27 @@ window.onload = function(){
     ];
 
     neighborChunks.forEach((chunkCoordinate) => {
-      if (!chunkArray[chunkCoordinate.x]) {
-        chunkArray[chunkCoordinate.x] = [];
+      if (allChunks[chunkCoordinate.x] === undefined) {
+        allChunks[chunkCoordinate.x] = {};
+        allChunkNodes[chunkCoordinate.x] = {};
       }
-      if (!chunkArray[chunkCoordinate.x][chunkCoordinate.z]) {
+      if (allChunks[chunkCoordinate.x][chunkCoordinate.z] === undefined) {
         let { chunk, node } = positionAndAddChunk(gl, program, terrainNode, chunkCoordinate.x, chunkCoordinate.z);
-        chunkArray[chunkCoordinate.x][chunkCoordinate.z] = chunk;
+        allChunks[chunkCoordinate.x][chunkCoordinate.z] = chunk;
+        allChunkNodes[chunkCoordinate.x][chunkCoordinate.z] = node;
       }
+    });
+
+    //Don't render chunks that are far away
+    _.each(allChunkNodes, (xNodeArray, x) => {
+      _.each(xNodeArray, (node, z) => {
+        if (Math.abs(currentChunkCoords.x - x) > CHUNK_CUTOFF_DISTANCE || Math.abs(currentChunkCoords.z - z) > CHUNK_CUTOFF_DISTANCE) {
+          node.disable();
+        }
+        else {
+          node.enable();
+        }
+      });
     });
 
     camera.apply();
