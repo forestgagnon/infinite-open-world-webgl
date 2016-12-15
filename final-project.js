@@ -9,7 +9,7 @@ let vertexShader = `
 attribute vec4 a_Position;
 attribute vec4 a_Normal;
 attribute vec2 a_TexCoord;
-attribute float a_Offset;
+attribute vec3 a_Offset;
 
 uniform mat4 u_View;
 uniform mat4 u_Projection;
@@ -20,9 +20,8 @@ varying vec2 v_TexCoord;
 varying vec4 v_Position;
 
 void main(){
-  // vec4 depthOffset = vec4(a_Offset) * vec4(-u_Blocksize);
-  vec4 depthOffset = vec4(0, a_Offset * -u_Blocksize, 0, 0);
-  vec4 position = u_Transform * (depthOffset + a_Position);
+  vec4 offset = vec4(a_Offset, 1) * u_Blocksize;
+  vec4 position = u_Transform * (offset + a_Position);
 
   gl_Position = u_Projection * u_View * position;
   v_TexCoord = a_TexCoord;
@@ -289,8 +288,7 @@ function createGrid(gl, program) {
   }
 }
 
-function createBlock(gl, program, texNum) {
-  let offsetArray = Array.from(Array(1000).keys());
+function createBlock(gl, program, texNum, offsets) {
 
   let block = {
     vertices: new Float32Array([
@@ -330,7 +328,7 @@ function createBlock(gl, program, texNum) {
 
     ]),
 
-    offsets: new Float32Array(offsetArray),
+    offsets: new Float32Array(offsets),
     dimensions: 3
   };
 
@@ -367,17 +365,18 @@ function createBlock(gl, program, texNum) {
     gl.vertexAttribPointer(program.a_TexCoord, 2, gl.FLOAT, false, 0,0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, block.offsetBuffer);
-    gl.vertexAttribPointer(program.a_Offset, 1, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(program.a_Offset, 3, gl.FLOAT, false, 0, 0);
     gl.instanceExt.vertexAttribDivisorANGLE(program.a_Offset, 1);
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, block.indexBuffer);
 
     // gl.drawElements(gl.TRIANGLES, block.indices.length, gl.UNSIGNED_BYTE, 0);
-    gl.instanceExt.drawElementsInstancedANGLE(gl.TRIANGLES, block.indices.length, gl.UNSIGNED_BYTE, 0, params.depth);
+    gl.instanceExt.drawElementsInstancedANGLE(gl.TRIANGLES, block.indices.length, gl.UNSIGNED_BYTE, 0, block.offsets.length / 3);
   };
 }
 
-function generateTerrainChunk(x, z) {
+function generateTerrainChunk(gl, program, x, z) {
+  let grassOffsets = [];
   const xModifier = TERRAIN_CHUNK_SIZE * x;
   const zModifier = TERRAIN_CHUNK_SIZE * z;
   let chunk = [];
@@ -385,27 +384,25 @@ function generateTerrainChunk(x, z) {
     chunk[row] = [];
     for (let col = 0; col < TERRAIN_CHUNK_SIZE; col++) {
       chunk[row][col] = noise.simplex2(xModifier + row, zModifier + col);
+      grassOffsets.push(row, chunk[row][col], col);
     }
   }
-  return chunk;
+  return {
+    positions: chunk,
+    blocks: {
+      grass: createBlock(gl, program, 0, grassOffsets)
+    }
+  }
 }
 
-function addTerrainChunkToNode(node, chunk, blocks) {
-  for (let row = 0; row < chunk.length; row++) {
-    for (let col = 0; col < chunk[row].length; col++) {
-      let translate = mat4.create();
-      // let height = Math.round(chunk[row][col]);
-      let height = chunk[row][col];
-      mat4.translate(translate, translate, vec3.fromValues(row * BLOCKSIZE, height * BLOCKSIZE, col * BLOCKSIZE));
-      let initTranslateNode = node.add('transformation', translate);
-      initTranslateNode.add('shape', {
-        shapeFunc: blocks.grass,
-        params: {
-          depth: 5
-        }
-      });
+function addTerrainChunkToNode(node, chunk) {
+  let { positions, blocks } = chunk;
+  node.add('shape', {
+    shapeFunc: blocks.grass,
+    params: {
+      depth: 5
     }
-  }
+  });
 }
 
 
@@ -491,10 +488,10 @@ window.onload = function(){
 
   let camera = createCamera(gl, program, vec3.fromValues(0, 0.5, 0));
   // let grid = createGrid(gl, program);
-  const blocks = {
-    grass: createBlock(gl, program, 0),
-    fire: createBlock(gl, program, 1)
-  };
+  // const blocks = {
+  //   grass: createBlock(gl, program, 0),
+  //   fire: createBlock(gl, program, 1)
+  // };
 
   //Initialize scenegraph and drawing functions
   let rootNode = createScenegraph(gl, program);
@@ -504,8 +501,8 @@ window.onload = function(){
 
   // terrainNode.add('shape', grid);
 
-  let testChunk = generateTerrainChunk(0, 0);
-  addTerrainChunkToNode(terrainNode, testChunk, blocks);
+  let testChunk = generateTerrainChunk(gl, program, 0, 0);
+  addTerrainChunkToNode(terrainNode, testChunk);
 
   // terrainNode.add('shape', grassBlock);
 
