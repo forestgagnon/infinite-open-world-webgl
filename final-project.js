@@ -383,8 +383,12 @@ function generateTerrainChunk(gl, program, x, z) {
   for (let row = 0; row < TERRAIN_CHUNK_SIZE; row++) {
     chunk[row] = [];
     for (let col = 0; col < TERRAIN_CHUNK_SIZE; col++) {
-      chunk[row][col] = noise.simplex2(xModifier + row, zModifier + col);
-      grassOffsets.push(row, chunk[row][col], col);
+      let height = Math.round(1.5 * noise.simplex2(xModifier + row, zModifier + col));
+      chunk[row][col] = height;
+      while (height > -30) {
+        grassOffsets.push(row, height, col);
+        height--;
+      }
     }
   }
   return {
