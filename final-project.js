@@ -65,7 +65,7 @@ const TERRAIN_CHUNK_SIZE = 64;
 
 const HALF_GRID_SIZE = GRID_SIZE / 2; //don't compute this everywhere
 const PERSPECTIVE_NEAR_PLANE = 0.1;
-const PERSPECTIVE_FAR_PLANE = 100;
+const PERSPECTIVE_FAR_PLANE = 50;
 const TURN_DEGREES = Math.PI / 75;
 const MOUSE_SENSITIVITY = 0.00025;
 const NOCLIP = false;
@@ -590,14 +590,35 @@ window.onload = function(){
     gl.uniformMatrix4fv(program.u_Projection, false, projection);
 
     const eyeVector = camera.getEyeVector();
-    // let currentChunk = { x: Math.floor(eyeVector[0] / (TERRAIN_CHUNK_SIZE * BLOCKSIZE / 2)), z: Math.floor(eyeVector[2] / (TERRAIN_CHUNK_SIZE * BLOCKSIZE / 2)) };
-    // console.log(currentChunk);
-    // console.log(TERRAIN_CHUNK_SIZE * BLOCKSIZE);
+    let currentChunkCoords = { x: Math.floor(eyeVector[0] / ((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2)), z: Math.floor(eyeVector[2] / ((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2)) };
+    let currentChunk = chunkArray[currentChunkCoords.x][currentChunkCoords.z];
+    // let currentBlockCoords = { x: Math.floor(eyeVector[0] - (((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2) * currentChunkCoords.x)), z: Math.floor(eyeVector[2] / ((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2)) };
+    console.log(currentChunkCoords);
 
     // Code to set player height to current block height
     // if (mazeObject.maze[Math.floor(Math.abs(eyeVector[0]/BLOCKSIZE))][Math.floor(Math.abs(eyeVector[2]/BLOCKSIZE))] === MAZE_CONSTANTS.END) {
     //   camera.setEye(vec3.fromValues(mazeObject.endRow * BLOCKSIZE + BLOCKSIZE/2, 0.5-BLOCKSIZE, mazeObject.endCol * BLOCKSIZE + BLOCKSIZE/2));
     // }
+
+    let neighborChunks = [
+      { x: currentChunkCoords.x - 1, z: currentChunkCoords.z - 1 },
+      { x: currentChunkCoords.x + 1, z: currentChunkCoords.z - 1 },
+      { x: currentChunkCoords.x + 1, z: currentChunkCoords.z + 1 },
+      { x: currentChunkCoords.x - 1, z: currentChunkCoords.z + 1 },
+      { x: currentChunkCoords.x, z: currentChunkCoords.z + 1 },
+      { x: currentChunkCoords.x, z: currentChunkCoords.z - 1 },
+      { x: currentChunkCoords.x + 1, z: currentChunkCoords.z },
+      { x: currentChunkCoords.x - 1, z: currentChunkCoords.z },
+    ];
+
+    neighborChunks.forEach((chunk) => {
+      if (!chunkArray[chunk.x]) {
+        chunkArray[chunk.x] = [];
+      }
+      if (!chunkArray[chunk.x][chunk.z]) {
+        chunkArray[chunk.x][chunk.z] = positionAndAddChunk(gl, program, terrainNode, chunk.x, chunk.z);
+      }
+    });
 
     camera.apply();
 
