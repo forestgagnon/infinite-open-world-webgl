@@ -59,10 +59,6 @@ function rgbToFloats(r, g, b) {
   return { r: r/255, g: g/255, b: b/255 };
 }
 
-const BLOCK_TYPES = {
-
-};
-
 //========== Color pallete ==========\\
 const DARK_RED = rgbToFloats(240, 59, 32);
 const BURNT_ORANGE = rgbToFloats(254, 178, 76);
@@ -73,7 +69,6 @@ const LIGHT_PINK = rgbToFloats(250, 159, 181);
 const DARK_GREEN = rgbToFloats(49, 163, 84);
 const LIGHT_GREEN = rgbToFloats(173, 221, 142);
 
-const GRID_SIZE = 12;
 const BLOCKSIZE = 0.5;
 const TERRAIN_CHUNK_SIZE = 64;
 const CHUNK_CUTOFF_DISTANCE = 2;
@@ -82,7 +77,6 @@ const WATER_LEVEL = TERRAIN_MAX_DEPTH + 1;
 const FIRE_LEVEL = 3;
 const GOLD_RARITY = 50000;
 
-const HALF_GRID_SIZE = GRID_SIZE / 2; //don't compute this everywhere
 const PERSPECTIVE_NEAR_PLANE = 0.1;
 const PERSPECTIVE_FAR_PLANE = 50;
 const TURN_DEGREES = Math.PI / 75;
@@ -876,11 +870,3 @@ function getRandomInt(min, max) {
 function getRandom(min, max) {
   return Math.random() * (max - min) + min;
 }
-
-// from http://gizma.com/easing/
-function easeInOutQuad (t, b, c, d) {
-  t /= d/2;
-  if (t < 1) return c/2*t*t + b;
-  t--;
-  return -c/2 * (t*(t-2) - 1) + b;
-};
