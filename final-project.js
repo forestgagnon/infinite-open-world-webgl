@@ -383,9 +383,9 @@ function generateTerrainChunk(gl, program, x, z) {
   for (let row = 0; row < TERRAIN_CHUNK_SIZE; row++) {
     chunk[row] = [];
     for (let col = 0; col < TERRAIN_CHUNK_SIZE; col++) {
-      let height = Math.round(1.5 * noise.simplex2(xModifier + row, zModifier + col));
+      let height = Math.round(2 * noise.simplex2(xModifier + row, zModifier + col));
       chunk[row][col] = height;
-      while (height > -30) {
+      while (height > -5) {
         grassOffsets.push(row, height, col);
         height--;
       }
@@ -404,9 +404,20 @@ function addTerrainChunkToNode(node, chunk) {
   node.add('shape', {
     shapeFunc: blocks.grass,
     params: {
-      depth: 5
     }
   });
+}
+
+function positionAndAddChunk(gl, program, node, x, z) {
+  let chunk = generateTerrainChunk(gl, program, x, z);
+  addTerrainChunkToNode(node, chunk);
+  let translate = mat4.create();
+  let xTranslate = (TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2 * x;
+  let zTranslate = (TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2 * z;
+  mat4.translate(translate, translate, vec3.fromValues(xTranslate, 0, zTranslate));
+  let translateNode = node.add('transformation', translate);
+  addTerrainChunkToNode(translateNode, chunk);
+  return chunk;
 }
 
 
@@ -501,43 +512,21 @@ window.onload = function(){
   let rootNode = createScenegraph(gl, program);
 
   let terrainTransform = mat4.create();
+  // mat4.translate(terrainTransform, terrainTransform, vec3.fromValues(-TERRAIN_CHUNK_SIZE * BLOCKSIZE / 2, 0, -TERRAIN_CHUNK_SIZE * BLOCKSIZE / 2));
   let terrainNode = rootNode.add('transformation', terrainTransform);
 
   // terrainNode.add('shape', grid);
 
-  let testChunk = generateTerrainChunk(gl, program, 0, 0);
-  addTerrainChunkToNode(terrainNode, testChunk);
 
-  // terrainNode.add('shape', grassBlock);
+  let chunkArray = [];
+  //generate initial chunks
+  for (let x = 0; x < 2; x++) {
+    chunkArray[x] = [];
+    for (let z = 0; z < 2; z++) {
+      chunkArray[x][z] = positionAndAddChunk(gl, program, terrainNode, x, z);
+    }
+  }
 
-  // for (let row = 0; row < mazeObject.maze.length; row++) {
-  //   for (let col = 0; col < mazeObject.maze.length; col++) {
-  //     let translate = mat4.create();
-  //     mat4.translate(translate, translate, vec3.fromValues(row * BLOCKSIZE, 0, col*BLOCKSIZE));
-  //     let transformNode = mazeNode.add('transformation', translate);
-  //     switch (mazeObject.maze[row][col]) {
-  //       case MAZE_CONSTANTS.WALL:
-  //         transformNode.add('shape', wall);
-  //         break;
-  //       case MAZE_CONSTANTS.OPEN:
-  //         transformNode.add('shape', floor);
-  //         transformNode.add('shape', roof);
-  //         break;
-  //       case MAZE_CONSTANTS.START:
-  //         transformNode.add('shape', floor);
-  //         transformNode.add('shape', roof);
-  //         break;
-  //       case MAZE_CONSTANTS.END:
-  //         let t = mat4.create();
-  //         transformNode.add('shape', roof);
-  //         mat4.translate(t, t, vec3.fromValues(0, -BLOCKSIZE, 0));
-  //         let tNode = transformNode.add('transformation', t);
-  //         tNode.add('shape', fireWall);
-  //         tNode.add('shape', fireFloor);
-  //         break;
-  //     }
-  //   }
-  // }
 
   let render = function(){
 
@@ -601,6 +590,9 @@ window.onload = function(){
     gl.uniformMatrix4fv(program.u_Projection, false, projection);
 
     const eyeVector = camera.getEyeVector();
+    // let currentChunk = { x: Math.floor(eyeVector[0] / (TERRAIN_CHUNK_SIZE * BLOCKSIZE / 2)), z: Math.floor(eyeVector[2] / (TERRAIN_CHUNK_SIZE * BLOCKSIZE / 2)) };
+    // console.log(currentChunk);
+    // console.log(TERRAIN_CHUNK_SIZE * BLOCKSIZE);
 
     // Code to set player height to current block height
     // if (mazeObject.maze[Math.floor(Math.abs(eyeVector[0]/BLOCKSIZE))][Math.floor(Math.abs(eyeVector[2]/BLOCKSIZE))] === MAZE_CONSTANTS.END) {
