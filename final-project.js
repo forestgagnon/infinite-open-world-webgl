@@ -9,20 +9,24 @@ let vertexShader = `
 attribute vec4 a_Position;
 attribute vec4 a_Normal;
 attribute vec2 a_TexCoord;
+attribute float a_Offset;
 
 uniform mat4 u_View;
 uniform mat4 u_Projection;
 uniform mat4 u_Transform;
+uniform float u_Blocksize;
 
 varying vec2 v_TexCoord;
 varying vec4 v_Position;
-varying vec4 v_Normal;
 
 void main(){
-  gl_Position = u_Projection * u_View * u_Transform * a_Position;
+  // vec4 depthOffset = vec4(a_Offset) * vec4(-u_Blocksize);
+  vec4 depthOffset = vec4(0, a_Offset * -u_Blocksize, 0, 0);
+  vec4 position = u_Transform * (depthOffset + a_Position);
+
+  gl_Position = u_Projection * u_View * position;
   v_TexCoord = a_TexCoord;
   v_Position = (u_Transform * a_Position);
-  v_Normal = normalize(u_Transform * a_Normal);
 }`;
 
 var fragmentShader = `
@@ -83,7 +87,7 @@ const createScenegraph = function(gl, program){
         if (type === "transformation"){
           node = createTransformationNode(data);
         }else if (type === "shape"){
-          node = createShapeNode(data);
+          node = createShapeNode(data.shapeFunc, data.params);
         }
         children.push(node);
         node.parent = this;
@@ -106,10 +110,10 @@ const createScenegraph = function(gl, program){
     };
   };
 
-  let createShapeNode = function(shapeFunc){
+  let createShapeNode = function(shapeFunc, params){
     return {
       apply: () =>{
-        shapeFunc();
+        shapeFunc(params);
       }
 
     };
@@ -286,6 +290,8 @@ function createGrid(gl, program) {
 }
 
 function createBlock(gl, program, texNum) {
+  let offsetArray = Array.from(Array(1000).keys());
+
   let block = {
     vertices: new Float32Array([
       BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, 0,0, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE, // front face
@@ -323,8 +329,11 @@ function createBlock(gl, program, texNum) {
      20,21,22, 20,22,23 // bottom face
 
     ]),
+
+    offsets: new Float32Array(offsetArray),
     dimensions: 3
   };
+
   block.vertexBuffer = gl.createBuffer();
   // block.normalBuffer = gl.createBuffer();
   block.indexBuffer = gl.createBuffer();
@@ -338,10 +347,14 @@ function createBlock(gl, program, texNum) {
   gl.bindBuffer(gl.ARRAY_BUFFER, block.textureBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, block.textureCoordinates, gl.STATIC_DRAW);
 
+  block.offsetBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, block.offsetBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, block.offsets, gl.STATIC_DRAW);
+
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, block.indexBuffer);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, block.indices, gl.STATIC_DRAW);
 
-  return () => {
+  return (params) => {
     gl.uniform1i(program.u_Sampler, texNum);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, block.vertexBuffer);
@@ -353,8 +366,14 @@ function createBlock(gl, program, texNum) {
     gl.bindBuffer(gl.ARRAY_BUFFER, block.textureBuffer);
     gl.vertexAttribPointer(program.a_TexCoord, 2, gl.FLOAT, false, 0,0);
 
+    gl.bindBuffer(gl.ARRAY_BUFFER, block.offsetBuffer);
+    gl.vertexAttribPointer(program.a_Offset, 1, gl.FLOAT, false, 0, 0);
+    gl.instanceExt.vertexAttribDivisorANGLE(program.a_Offset, 1);
+
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, block.indexBuffer);
-    gl.drawElements(gl.TRIANGLES, block.indices.length, gl.UNSIGNED_BYTE, 0);
+
+    // gl.drawElements(gl.TRIANGLES, block.indices.length, gl.UNSIGNED_BYTE, 0);
+    gl.instanceExt.drawElementsInstancedANGLE(gl.TRIANGLES, block.indices.length, gl.UNSIGNED_BYTE, 0, params.depth);
   };
 }
 
@@ -375,9 +394,16 @@ function addTerrainChunkToNode(node, chunk, blocks) {
   for (let row = 0; row < chunk.length; row++) {
     for (let col = 0; col < chunk[row].length; col++) {
       let translate = mat4.create();
-      mat4.translate(translate, translate, vec3.fromValues(row * BLOCKSIZE, chunk[row][col], col * BLOCKSIZE));
-      let heightTransformNode = node.add('transformation', translate);
-      heightTransformNode.add('shape', blocks.grass);
+      // let height = Math.round(chunk[row][col]);
+      let height = chunk[row][col];
+      mat4.translate(translate, translate, vec3.fromValues(row * BLOCKSIZE, height * BLOCKSIZE, col * BLOCKSIZE));
+      let initTranslateNode = node.add('transformation', translate);
+      initTranslateNode.add('shape', {
+        shapeFunc: blocks.grass,
+        params: {
+          depth: 5
+        }
+      });
     }
   }
 }
@@ -400,13 +426,18 @@ window.onload = function(){
 
   // don't catch this error since any problem here is a programmer error
   let program = middUtils.initializeProgram(gl, vertexShader, fragmentShader);
+  gl.instanceExt = gl.getExtension("ANGLE_instanced_arrays");
 
   program.a_Position = gl.getAttribLocation(program, 'a_Position');
   program.a_Color = gl.getAttribLocation(program, 'a_Color');
   program.a_TexCoord = gl.getAttribLocation(program, 'a_TexCoord');
+  program.a_Offset = gl.getAttribLocation(program, 'a_Offset');
   program.u_Sampler = gl.getUniformLocation(program, 'u_Sampler');
   program.u_Projection = gl.getUniformLocation(program, 'u_Projection');
   program.u_View = gl.getUniformLocation(program, 'u_View');
+  program.u_Blocksize = gl.getUniformLocation(program, 'u_Blocksize');
+
+  gl.uniform1f(program.u_Blocksize, BLOCKSIZE);
 
   gl.enable(gl.DEPTH_TEST);
   gl.clearColor(0,0,0,1);
@@ -453,6 +484,7 @@ window.onload = function(){
 
   gl.enableVertexAttribArray(program.a_Position);
   gl.enableVertexAttribArray(program.a_TexCoord);
+  gl.enableVertexAttribArray(program.a_Offset);
 
   noise.seed(Math.random());
 
@@ -474,8 +506,6 @@ window.onload = function(){
 
   let testChunk = generateTerrainChunk(0, 0);
   addTerrainChunkToNode(terrainNode, testChunk, blocks);
-
-  console.log(testChunk);
 
   // terrainNode.add('shape', grassBlock);
 
