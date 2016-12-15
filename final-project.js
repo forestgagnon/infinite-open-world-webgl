@@ -63,6 +63,7 @@ const GRID_SIZE = 12;
 const BLOCKSIZE = 0.5;
 const TERRAIN_CHUNK_SIZE = 64;
 const CHUNK_CUTOFF_DISTANCE = 1;
+const TERRAIN_MAX_DEPTH = -5;
 
 const HALF_GRID_SIZE = GRID_SIZE / 2; //don't compute this everywhere
 const PERSPECTIVE_NEAR_PLANE = 0.1;
@@ -80,6 +81,7 @@ const createScenegraph = function(gl, program){
   let u_Transform = gl.getUniformLocation(program, 'u_Transform');
 
   let createTransformationNode = function(matrix){
+    let enabled = true;
     let children = [];
     return {
       add: function(type, data){
@@ -94,7 +96,9 @@ const createScenegraph = function(gl, program){
         return node;
       },
       apply: () =>{
-
+        if (!enabled) {
+          return;
+        }
         stack.push(mat4.clone(currentMatrix));
         let newMatrix = mat4.create();
         mat4.mul(newMatrix, currentMatrix, matrix);
@@ -105,6 +109,12 @@ const createScenegraph = function(gl, program){
         });
         currentMatrix = stack.pop();
 
+      },
+      enable: () => {
+        enabled = true;
+      },
+      disable: () => {
+        enabled = false;
       }
 
     };
@@ -387,32 +397,41 @@ function createBlock(gl, program, texNum, offsets) {
 
 function generateTerrainChunk(gl, program, x, z) {
   let grassOffsets = [];
+  let stoneOffsets = [];
   const xModifier = TERRAIN_CHUNK_SIZE * x;
   const zModifier = TERRAIN_CHUNK_SIZE * z;
   let chunk = [];
   for (let row = 0; row < TERRAIN_CHUNK_SIZE; row++) {
     chunk[row] = [];
     for (let col = 0; col < TERRAIN_CHUNK_SIZE; col++) {
-      let height = Math.round(2 * noise.simplex2(xModifier + row, zModifier + col));
+      let height = Math.round(5 * noise.simplex2((xModifier + row) / 50, (zModifier + col) / 50));
       chunk[row][col] = height;
-      while (height > -5) {
+      while (height > TERRAIN_MAX_DEPTH) {
         grassOffsets.push(row, height, col);
         height--;
       }
+      stoneOffsets.push(row, height, col);
     }
   }
   return {
     positions: chunk,
     blocks: {
-      grass: createBlock(gl, program, 0, grassOffsets)
+      grass: createBlock(gl, program, 0, grassOffsets),
+      stone: createBlock(gl, program, 2, stoneOffsets)
     }
   }
 }
 
 function addTerrainChunkToNode(node, chunk) {
   let { positions, blocks } = chunk;
-  let chunkNode = node.add('shape', {
+  let chunkNode = node.add('transformation', mat4.create());
+  let grassNode = chunkNode.add('shape', {
     shapeFunc: blocks.grass,
+    params: {
+    }
+  });
+  let stoneNode = chunkNode.add('shape', {
+    shapeFunc: blocks.stone,
     params: {
     }
   });
@@ -609,7 +628,7 @@ window.onload = function(){
     let currentChunkCoords = { x: Math.floor(eyeVector[0] / ((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 1.5)), z: Math.floor(eyeVector[2] / ((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 1.5)) };
     let currentChunk = allChunks[currentChunkCoords.x][currentChunkCoords.z];
     // let currentBlockCoords = { x: Math.floor(eyeVector[0] - (((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2) * currentChunkCoords.x)), z: Math.floor(eyeVector[2] / ((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2)) };
-    console.log(currentChunkCoords);
+    // console.log(currentChunkCoords);
 
     // Code to set player height to current block height
     // if (mazeObject.maze[Math.floor(Math.abs(eyeVector[0]/BLOCKSIZE))][Math.floor(Math.abs(eyeVector[2]/BLOCKSIZE))] === MAZE_CONSTANTS.END) {
@@ -661,7 +680,8 @@ window.onload = function(){
 
   Promise.all([
     initializeTexture(gl, gl.TEXTURE0, 'grass.png'),
-     initializeTexture(gl, gl.TEXTURE1, 'fire2.jpg')
+     initializeTexture(gl, gl.TEXTURE1, 'fire2.jpg'),
+     initializeTexture(gl, gl.TEXTURE2, 'stone.png')
   ])
     .then(() => render())
     .catch(function (error) {alert('Failed to load texture '+  error.message);});
