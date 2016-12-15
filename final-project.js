@@ -79,6 +79,8 @@ const TERRAIN_CHUNK_SIZE = 64;
 const CHUNK_CUTOFF_DISTANCE = 2;
 const TERRAIN_MAX_DEPTH = -4;
 const WATER_LEVEL = TERRAIN_MAX_DEPTH + 1;
+const FIRE_LEVEL = 3;
+const GOLD_RARITY = 50000;
 
 const HALF_GRID_SIZE = GRID_SIZE / 2; //don't compute this everywhere
 const PERSPECTIVE_NEAR_PLANE = 0.1;
@@ -87,7 +89,7 @@ const TURN_DEGREES = Math.PI / 75;
 const MOUSE_SENSITIVITY = 0.00025;
 const NOCLIP = false;
 const WALL_CLIP_DISTANCE = 0.2;
-const MOVEMENT_SPEED_FACTOR = 0.05;
+const MOVEMENT_SPEED_FACTOR = 0.1;
 const MOVEMENT_SPEED_FACTOR_RUNNING = MOVEMENT_SPEED_FACTOR * 2;
 
 const createScenegraph = function(gl, program){
@@ -193,7 +195,7 @@ const createCamera = function(gl, program, eyeVector) {
 
     moveForward: (params) => {
       let direction = vec3.create();
-      vec3.subtract(direction, at, eye);
+      vec3.subtract(direction, tiltedAt, eye);
       vec3.normalize(direction, direction);
       movementVec = vec3.create();
       vec3.multiply(movementVec, direction, vec3.fromValues(params.movementSpeed, params.movementSpeed, params.movementSpeed));
@@ -202,7 +204,7 @@ const createCamera = function(gl, program, eyeVector) {
     },
     moveBackward: (params) => {
       let direction = vec3.create();
-      vec3.subtract(direction, eye, at);
+      vec3.subtract(direction, eye, tiltedAt);
       vec3.normalize(direction, direction);
       movementVec = vec3.create();
       vec3.multiply(movementVec, direction, vec3.fromValues(params.movementSpeed, params.movementSpeed, params.movementSpeed));
@@ -420,25 +422,48 @@ function createBlock(gl, program, params) {
 }
 
 function generateTerrainChunk(gl, program, x, z) {
-  let grassOffsets = [], stoneOffsets = [], waterOffsets = [];
+  let isVolcanic = getRandomInt(0,10) === 1;
+  let goldLocations = [];
+  let blockCount = 0;
+  let grassOffsets = [], stoneOffsets = [], waterOffsets = [], fireOffsets = [], goldOffsets = [];
   const xModifier = TERRAIN_CHUNK_SIZE * x;
   const zModifier = TERRAIN_CHUNK_SIZE * z;
   let chunk = [];
   for (let row = 0; row < TERRAIN_CHUNK_SIZE; row++) {
     chunk[row] = [];
     for (let col = 0; col < TERRAIN_CHUNK_SIZE; col++) {
-      let height = Math.round(5 * noise.simplex2((xModifier + row) / 50, (zModifier + col) / 50));
+      let firstLevelNoise = noise.simplex2((xModifier + row) / 50, (zModifier + col) / 50);
+      let secondLevelNoise = noise.simplex2((xModifier + row) / 25, (zModifier + col) / 25);
+      let height = Math.round(5 * firstLevelNoise + secondLevelNoise);
       chunk[row][col] = height;
       while (height > WATER_LEVEL) {
-        grassOffsets.push(row, height, col);
+        blockCount++;
+        if (getRandomInt(0, GOLD_RARITY) === 1) {
+          goldOffsets.push(row, height, col);
+          goldLocations.push({ chunkX: x, chunkZ: z });
+        }
+        else if (isVolcanic) {
+          if(height < FIRE_LEVEL) {
+            stoneOffsets.push(row, height, col);
+          }
+          else {
+            fireOffsets.push(row, height, col);
+          }
+        }
+        else {
+          grassOffsets.push(row, height, col);
+        }
         height--;
       }
       waterOffsets.push(row, WATER_LEVEL, col);
       stoneOffsets.push(row, TERRAIN_MAX_DEPTH, col);
+      blockCount += 2;
     }
   }
   return {
     positions: chunk,
+    goldLocations: goldLocations,
+    numBlocks: blockCount,
     blocks: {
       grassTop: createBlock(gl, program, {
         texNum:  0,
@@ -466,6 +491,14 @@ function generateTerrainChunk(gl, program, x, z) {
       water: createBlock(gl, program, {
         texNum:  3,
         offsets: waterOffsets
+      }),
+      fire: createBlock(gl, program, {
+        texNum:  4,
+        offsets: fireOffsets
+      }),
+      gold: createBlock(gl, program, {
+        texNum:  5,
+        offsets: goldOffsets
       })
     }
   }
@@ -491,6 +524,16 @@ function addTerrainChunkToNode(node, chunk) {
   });
   let waterNode = chunkNode.add('shape', {
     shapeFunc: blocks.water,
+    params: {
+    }
+  });
+  let fireNode = chunkNode.add('shape', {
+    shapeFunc: blocks.fire,
+    params: {
+    }
+  });
+  let goldNode = chunkNode.add('shape', {
+    shapeFunc: blocks.gold,
     params: {
     }
   });
@@ -593,13 +636,6 @@ window.onload = function(){
 
 
   let camera = createCamera(gl, program, vec3.fromValues(0, 0.5, 0));
-  // let grid = createGrid(gl, program);
-  // const blocks = {
-  //   grass: createBlock(gl, program, 0),
-  //   fire: createBlock(gl, program, 1)
-  // };
-
-  //Initialize scenegraph and drawing functions
   let rootNode = createScenegraph(gl, program);
 
   let terrainTransform = mat4.create();
@@ -608,6 +644,9 @@ window.onload = function(){
 
   // terrainNode.add('shape', grid);
 
+  let allGoldLocations = [];
+  let totalChunkCount = 0;
+  let totalBlockCount = 0;
 
   let allChunks = {};
   let allChunkNodes = {};
@@ -618,6 +657,9 @@ window.onload = function(){
       let { chunk, node } = positionAndAddChunk(gl, program, terrainNode, x, z);
       allChunks[x][z] = chunk
       allChunkNodes[x][z] = node;
+      allGoldLocations = allGoldLocations.concat(chunk.goldLocations);
+      totalChunkCount++;
+      totalBlockCount += chunk.numBlocks;
     }
   }
 
@@ -715,7 +757,7 @@ window.onload = function(){
         allChunkNodes[chunkCoordinate.x] = {};
       }
       if (allChunks[chunkCoordinate.x][chunkCoordinate.z] === undefined) {
-        let { chunk, node } = positionAndAddChunk(gl, program, terrainNode, chunkCoordinate.x, chunkCoordinate.z);
+        let { chunk, node, goldLocations } = positionAndAddChunk(gl, program, terrainNode, chunkCoordinate.x, chunkCoordinate.z);
         allChunks[chunkCoordinate.x][chunkCoordinate.z] = chunk;
         allChunkNodes[chunkCoordinate.x][chunkCoordinate.z] = node;
       }
@@ -740,6 +782,9 @@ window.onload = function(){
             let { chunk, node } = positionAndAddChunk(gl, program, terrainNode, chunkCoordinate.x, chunkCoordinate.z);
             allChunks[chunkCoordinate.x][chunkCoordinate.z] = chunk;
             allChunkNodes[chunkCoordinate.x][chunkCoordinate.z] = node;
+            allGoldLocations = allGoldLocations.concat(chunk.goldLocations);
+            totalChunkCount++;
+            totalBlockCount += chunk.numBlocks;
           }
         });
         lastDeepChunkCheck = Date.now();
@@ -758,6 +803,20 @@ window.onload = function(){
       });
     });
 
+    let goldNearby = false;
+    allGoldLocations.forEach((location) => {
+      if (currentChunkCoords.x === location.chunkX && currentChunkCoords.z === location.chunkZ) {
+        goldNearby = true;
+      }
+    });
+
+    document.getElementById('goldradar').innerHTML = goldNearby ? "THERE IS GOLD NEARBY!" : "Better keep looking...";
+    document.getElementById('goldradar').style = goldNearby ? "font-weight: bold;" : "";
+    document.getElementById('goldcount').innerHTML = allGoldLocations.length;
+    document.getElementById('chunkcount').innerHTML = totalChunkCount;
+    document.getElementById('blockcount').innerHTML = totalBlockCount;
+
+
     camera.apply();
 
     rootNode.apply();
@@ -770,7 +829,8 @@ window.onload = function(){
     initializeTexture(gl, gl.TEXTURE1, 'dirt.jpg'),
     initializeTexture(gl, gl.TEXTURE2, 'stone.png'),
     initializeTexture(gl, gl.TEXTURE3, 'water.png'),
-    initializeTexture(gl, gl.TEXTURE4, 'fire2.jpg')
+    initializeTexture(gl, gl.TEXTURE4, 'fire2.jpg'),
+    initializeTexture(gl, gl.TEXTURE5, 'gold.jpg')
   ])
     .then(() => render())
     .catch(function (error) {alert('Failed to load texture '+  error.message);});
