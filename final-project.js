@@ -12,6 +12,11 @@
 * if you fly around for a minute. The HUD will let you know if there's any gold in the current chunk you are on.
 * There is also a compass in the HUD.
 *
+* There are many, many layers of noise involved in the terrain generation, both for height as well as the block types. There are arid flat deserts,
+* snowy areas (with frozen lakes inland but not near the edges), grassy areas, and occasional mountains and even volcanos. Most of it is tiled
+* seperately from chunk boundaries (there are no obvious seams between chunks for things like sand, snow, rock, grass etc..)
+*
+*
 */
 
 let vertexShader = `
@@ -414,7 +419,7 @@ function generateTerrainChunk(gl, program, x, z) {
       if (snowNoise <= 0.05) {
         isSnow = true;
       }
-      else if (sandNoise <= 0.5) {
+      else if (sandNoise <= 0.4) {
         isDesert = true;
         if (sandNoise <= 0.1) {
           height = Math.round(height * 0.25);
