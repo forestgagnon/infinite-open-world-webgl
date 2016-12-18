@@ -18,6 +18,9 @@
       body {
         font-family: sans-serif;
       }
+      .marginright {
+        margin-right: 20px;
+      }
       #game-div {
         position: relative;
       }
@@ -29,6 +32,7 @@
         background-color: white;
         padding: 10px;
         opacity: 0.7;
+        min-width: 700px;
       }
 
       #compass-div {
@@ -40,10 +44,14 @@
       #compass {
         width: 100px;
         height: 100px;
+        margin-right: 20px;
       }
       #canvas-div {
         position: absolute;
         z-index: -1;
+      }
+      #current-chunk, #blockcount, #goldcount, #chunkcount {
+        font-weight: bold;
       }
 
     </style>
@@ -59,12 +67,18 @@
       <div id='HUD'>
         <div id='left'>
           <p>
-            There are <span style='font-weight:bold;' id='goldcount'>0</span> gold blocks in this world,
-            which has <span id='blockcount'>0</span> blocks in <span id='chunkcount'>0</span> chunks. <span id='goldradar'>Better start looking...</span>
+            There are <span id='goldcount'>0</span> gold blocks in this world,
+            which has <span id='blockcount'>0</span> blocks in <span id='chunkcount'>0</span> chunks.
           </p>
         </div>
         <div id='compass-div'>
           <img id='compass' src='compass.png'/>
+          <div class='marginright'>
+            Current Chunk Coordinates: <span id='current-chunk'></span>
+          </div>
+          <div>
+            <span id='goldradar'>Better start looking...</span>
+          </div>
         </div>
 
         </div>

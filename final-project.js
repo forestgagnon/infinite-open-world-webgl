@@ -1,5 +1,16 @@
 //========== Forest Gagnon - CS461 Final Project - final-project.js ==========\\
-/* Description TBD
+/* This is a Minecraft-style infinite world which is procedurally generated in tiled chunks using using simplex noise.
+* As the player moves around, nearby chunks are generated and saved.
+* Chunks which are not near the player (i.e. not visible) are disabled in the scenegraph and thus not rendered.
+* If the player returns to the same chunk later, it will not have changed.
+* I used a WebGL plugin which adds support for instancing, which allows for all blocks of the same type to be rendered
+* with one draw call per chunk.
+* Fog has been added to counter the pop-in effect during the generation of new chunks, making it appear seamless.
+* On my machine (Nvidea GTX 970M, i7 6820HK), player movement never outpaces the terrain generation, and it runs above 60FPS.
+*
+* Gold is randomly scattered throughout the world... Despite the rarity, It's not TOO hard to find some on the surface
+* if you fly around for a minute. The HUD will let you know if there's any gold in the current chunk you are on.
+* There is also a compass in the HUD.
 *
 */
 
@@ -285,35 +296,6 @@ const createCamera = function(gl, program, eyeVector) {
 
 
 //========== DRAWING FUNCTION GENERATORS ==========\\
-function createGrid(gl, program) {
-  let grid = [];
-  for (let i = -HALF_GRID_SIZE; i <= HALF_GRID_SIZE; i += BLOCKSIZE) {
-    grid.push(
-      i, 0.0, -HALF_GRID_SIZE, 1.0, 1.0, 1.0,
-      i, 0.0, HALF_GRID_SIZE, 1.0, 1.0, 1.0,
-      HALF_GRID_SIZE, 0.0, i, 1.0, 1.0, 1.0,
-      -HALF_GRID_SIZE, 0.0, i, 1.0, 1.0, 1.0
-    );
-  }
-
-  let gridArray = new Float32Array(grid);
-  const FSIZE = gridArray.BYTES_PER_ELEMENT;
-  let vertexBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, gridArray, gl.STATIC_DRAW);
-
-  return () => {
-    const originalWidth = gl.getParameter(gl.LINE_WIDTH);
-    gl.lineWidth(5);
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-    gl.vertexAttribPointer(program.a_Position, 3, gl.FLOAT, false, FSIZE * 6, 0);
-    gl.vertexAttribPointer(program.a_Color, 3, gl.FLOAT, false,  FSIZE * 6, FSIZE * 3);
-    gl.drawArrays(gl.LINES, 0, gridArray.length / 6);
-
-    gl.lineWidth(originalWidth);
-  }
-}
-
 function createBlock(gl, program, params) {
   let { texNum, offsets, enabledFaces } = params;
   let indices;
@@ -801,6 +783,7 @@ window.onload = function(){
     document.getElementById('goldcount').innerHTML = allGoldLocations.length;
     document.getElementById('chunkcount').innerHTML = totalChunkCount;
     document.getElementById('blockcount').innerHTML = totalBlockCount;
+    document.getElementById('current-chunk').innerHTML = "(" + currentChunkCoords.x + ", " + currentChunkCoords.z + ")";
 
     let compassAngle = camera.getCompassAngle();
     document.getElementById('compass').style.transform = "rotate(" + compassAngle + "deg)";
