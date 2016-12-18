@@ -49,23 +49,8 @@ void main(){
   vec4 fogColor = vec4(0,0,0,1);
 
   gl_FragColor = mix(fogColor, texture2D(u_Sampler, v_TexCoord), fogFactor);
-  // gl_FragColor = texture2D(u_Sampler, v_TexCoord);
-  // gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
 }`;
 
-function rgbToFloats(r, g, b) {
-  return { r: r/255, g: g/255, b: b/255 };
-}
-
-//========== Color pallete ==========\\
-const DARK_RED = rgbToFloats(240, 59, 32);
-const BURNT_ORANGE = rgbToFloats(254, 178, 76);
-const DARK_BLUE = rgbToFloats(44, 127, 184);
-const SKY_BLUE = rgbToFloats(127, 205, 187);
-const DARK_PINK = rgbToFloats(197, 27, 138);
-const LIGHT_PINK = rgbToFloats(250, 159, 181);
-const DARK_GREEN = rgbToFloats(49, 163, 84);
-const LIGHT_GREEN = rgbToFloats(173, 221, 142);
 
 const BLOCKSIZE = 0.5;
 const TERRAIN_CHUNK_SIZE = 64;
@@ -270,6 +255,18 @@ const createCamera = function(gl, program, eyeVector) {
 
     getAtVector: () => {
       return tiltedAt;
+    },
+
+    getCompassAngle: () => {
+      let direction = vec3.create();
+      vec3.sub(direction, eye, at);
+      let normal = at[2] < eye[2] ? vec3.fromValues(1, 0, 0) : vec3.fromValues(-1, 0, 0);
+      let radians = vec3.angle(direction, normal);
+      if (at[2] < eye[2]) {
+        radians += Math.PI;
+      }
+      let degrees = radians * (180 / Math.PI);
+      return degrees;
     },
 
     getUpVector: () => {
@@ -551,8 +548,11 @@ function positionAndAddChunk(gl, program, node, x, z) {
 window.onload = function(){
 
   let canvas = document.getElementById('canvas');
+  let gameDiv = document.getElementById('game-div');
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight - document.getElementById('description').getBoundingClientRect().height - 50;
+  gameDiv.width = canvas.width;
+  gameDiv.height = canvas.height;
   let gl;
   // catch the error from creating the context since this has nothing to do with the code
   try{
@@ -721,13 +721,7 @@ window.onload = function(){
     const eyeVector = camera.getEyeVector();
     let currentChunkCoords = { x: Math.floor(eyeVector[0] / ((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 1.5)), z: Math.floor(eyeVector[2] / ((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 1.5)) };
     let currentChunk = allChunks[currentChunkCoords.x][currentChunkCoords.z];
-    // let currentBlockCoords = { x: Math.floor(eyeVector[0] - (((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2) * currentChunkCoords.x)), z: Math.floor(eyeVector[2] / ((TERRAIN_CHUNK_SIZE * BLOCKSIZE) / 2)) };
-    // console.log(currentChunkCoords);
 
-    // Code to set player height to current block height
-    // if (mazeObject.maze[Math.floor(Math.abs(eyeVector[0]/BLOCKSIZE))][Math.floor(Math.abs(eyeVector[2]/BLOCKSIZE))] === MAZE_CONSTANTS.END) {
-    //   camera.setEye(vec3.fromValues(mazeObject.endRow * BLOCKSIZE + BLOCKSIZE/2, 0.5-BLOCKSIZE, mazeObject.endCol * BLOCKSIZE + BLOCKSIZE/2));
-    // }
 
     let neighborChunks = [
       { x: currentChunkCoords.x, z: currentChunkCoords.z },
@@ -803,10 +797,13 @@ window.onload = function(){
     });
 
     document.getElementById('goldradar').innerHTML = goldNearby ? "THERE IS GOLD NEARBY!" : "Better keep looking...";
-    document.getElementById('goldradar').style = goldNearby ? "font-weight: bold;" : "";
+    document.getElementById('goldradar').style.fontWeight = goldNearby ? "bold" : "";
     document.getElementById('goldcount').innerHTML = allGoldLocations.length;
     document.getElementById('chunkcount').innerHTML = totalChunkCount;
     document.getElementById('blockcount').innerHTML = totalBlockCount;
+
+    let compassAngle = camera.getCompassAngle();
+    document.getElementById('compass').style.transform = "rotate(" + compassAngle + "deg)";
 
 
     camera.apply();
@@ -867,4 +864,8 @@ function getRandomInt(min, max) {
 
 function getRandom(min, max) {
   return Math.random() * (max - min) + min;
+}
+
+function rgbToFloats(r, g, b) {
+  return { r: r/255, g: g/255, b: b/255 };
 }

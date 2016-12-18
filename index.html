@@ -16,8 +16,36 @@
       <script type="text/javascript" src="final-project.js"></script>
     <style>
       body {
-        font-family: sans-serif;;
+        font-family: sans-serif;
       }
+      #game-div {
+        position: relative;
+      }
+      #HUD {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        z-index: 0;
+        background-color: white;
+        padding: 10px;
+        opacity: 0.7;
+      }
+
+      #compass-div {
+        display: flex;
+        align-items: center;
+        flex-direction: row;
+        justify-content: flex-start;
+      }
+      #compass {
+        width: 100px;
+        height: 100px;
+      }
+      #canvas-div {
+        position: absolute;
+        z-index: -1;
+      }
+
     </style>
   </head>
   <body style="margin: 0px;">
@@ -26,11 +54,24 @@
       <p>
         <strong>CONTROLS</strong>: <strong>WASD</strong> to move/strafe. <strong>HOLD SHIFT</strong> to run faster. <strong>CLICK THE GAME to lock your cursor for aiming</strong>, <strong>R/F</strong> to pan up/down
       </p>
-      <p>
-        There are <span style='font-weight:bold;' id='goldcount'>0</span> gold blocks in this world,
-        which has <span id='blockcount'>0</span> blocks in <span id='chunkcount'>0</span> chunks. <span id='goldradar'>Better start looking...</span>
-      </p>
     </div>
-    <canvas id="canvas" width="600" height="600"></canvas>
+    <div id='game-div'>
+      <div id='HUD'>
+        <div id='left'>
+          <p>
+            There are <span style='font-weight:bold;' id='goldcount'>0</span> gold blocks in this world,
+            which has <span id='blockcount'>0</span> blocks in <span id='chunkcount'>0</span> chunks. <span id='goldradar'>Better start looking...</span>
+          </p>
+        </div>
+        <div id='compass-div'>
+          <img id='compass' src='compass.png'/>
+        </div>
+
+        </div>
+      </div>
+      <div id="canvas-div">
+        <canvas id="canvas" width="100%" height="100%"></canvas>
+      </div>
+    </div>
   </body>
 </html>
