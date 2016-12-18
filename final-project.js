@@ -7,6 +7,8 @@
 * with one draw call per chunk.
 * Fog has been added to counter the pop-in effect during the generation of new chunks, making it appear seamless.
 * On my machine (Nvidia GTX 970M, i7 6820HK), player movement never outpaces the terrain generation, and it runs above 60FPS.
+* Unfortunately, all chunks are stored in RAM, so it quickly starts to take up hundreds of megabytes
+* (a good solution would be storing far away chunks more efficiently, and maybe on the disk)
 *
 * Gold is randomly scattered throughout the world... Despite the rarity, It's not TOO hard to find some on the surface
 * if you fly around for a minute. The HUD will let you know if there's any gold in the current chunk you are on.
@@ -401,7 +403,7 @@ function generateTerrainChunk(gl, program, x, z) {
   let hasMountains = getRandomInt(0,10) === 1;
   let goldLocations = [];
   let blockCount = 0;
-  let grassOffsets = [], stoneOffsets = [], waterOffsets = [], frozenWaterOffsets = [], fireOffsets = [], snowOffsets = [], sandOffsets = [], goldOffsets = [];
+  let grassOffsets = [], stoneOffsets = [], waterOffsets = [], frozenWaterOffsets = [], fireOffsets = [], snowOffsets = [], snowyStoneOffsets = [], sandOffsets = [], goldOffsets = [];
   const xModifier = TERRAIN_CHUNK_SIZE * x;
   const zModifier = TERRAIN_CHUNK_SIZE * z;
   let chunk = [];
@@ -443,7 +445,12 @@ function generateTerrainChunk(gl, program, x, z) {
         }
         else {
           if (isSnow) {
-            snowOffsets.push(row, height, col);
+            if (thirdLevelNoise <= 0.5) {
+              snowOffsets.push(row, height, col);
+            }
+            else {
+              snowyStoneOffsets.push(row, height, col);
+            }
           }
           else if (isDesert) {
             sandOffsets.push(row, height, col);
@@ -518,6 +525,25 @@ function generateTerrainChunk(gl, program, x, z) {
          20,21,22, 20,22,23 // bottom face
         ]
       }),
+      snowyStoneTop: createBlock(gl, program, {
+        texNum:  6,
+        offsets: snowyStoneOffsets,
+        enabledFaces: [
+         16,17,18, 16,18,19, // top face
+        ]
+      }),
+      snowyStoneSides: createBlock(gl, program, {
+        texNum:  2,
+        offsets: snowyStoneOffsets,
+        enabledFaces: [
+          0,1,2,  0,2,3, // front face
+          4,5,6,  4,6,7,   // right face
+         8,9,10, 8,10,11, // back face
+         12,13,14,  12,14,15, // left face
+        //  16,17,18, 16,18,19, // top face
+         20,21,22, 20,22,23 // bottom face
+        ]
+      }),
       stone: createBlock(gl, program, {
         texNum:  2,
         offsets: stoneOffsets
@@ -566,6 +592,16 @@ function addTerrainChunkToNode(node, chunk) {
   });
   let snowSidesNode = chunkNode.add('shape', {
     shapeFunc: blocks.snowSides,
+    params: {
+    }
+  });
+  let snowyStoneTopNode = chunkNode.add('shape', {
+    shapeFunc: blocks.snowyStoneTop,
+    params: {
+    }
+  });
+  let snowyStoneSidesNode = chunkNode.add('shape', {
+    shapeFunc: blocks.snowyStoneSides,
     params: {
     }
   });
