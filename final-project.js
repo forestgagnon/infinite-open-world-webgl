@@ -393,9 +393,10 @@ function createBlock(gl, program, params) {
 
 function generateTerrainChunk(gl, program, x, z) {
   let isVolcanic = getRandomInt(0,10) === 1;
+  let hasMountains = getRandomInt(0,10) === 1;
   let goldLocations = [];
   let blockCount = 0;
-  let grassOffsets = [], stoneOffsets = [], waterOffsets = [], fireOffsets = [], goldOffsets = [];
+  let grassOffsets = [], stoneOffsets = [], waterOffsets = [], fireOffsets = [], snowOffsets = [], sandOffsets = [], goldOffsets = [];
   const xModifier = TERRAIN_CHUNK_SIZE * x;
   const zModifier = TERRAIN_CHUNK_SIZE * z;
   let chunk = [];
@@ -404,7 +405,30 @@ function generateTerrainChunk(gl, program, x, z) {
     for (let col = 0; col < TERRAIN_CHUNK_SIZE; col++) {
       let firstLevelNoise = noise.simplex2((xModifier + row) / 50, (zModifier + col) / 50);
       let secondLevelNoise = noise.simplex2((xModifier + row) / 25, (zModifier + col) / 25);
-      let height = Math.round(5 * firstLevelNoise * secondLevelNoise);
+      let height = Math.round(5 * firstLevelNoise + (firstLevelNoise * secondLevelNoise));
+      let thirdLevelNoise = noise.simplex2((xModifier + row) / 200, (zModifier + col) / 200);
+      let snowNoise = noise.simplex2((xModifier + row) / 1000, (zModifier + col) / 1000);
+      let sandNoise = noise.simplex2((xModifier + row) / 500, (zModifier + col) / 500);
+      let isDesert = false, isSnow = false;
+
+      if (snowNoise <= 0.05) {
+        isSnow = true;
+      }
+      else if (sandNoise <= 0.5) {
+        isDesert = true;
+        if (sandNoise <= 0.1) {
+          height = Math.round(height * 0.25);
+        }
+        else {
+          height = Math.round(height * 0.75);
+        }
+      }
+
+      if (hasMountains && !isVolcanic && !isDesert && height > 2) {
+        height = Math.abs(Math.pow(height, 2)) * secondLevelNoise;
+      }
+
+      height = Math.round(height);
       chunk[row][col] = height;
       while (height > WATER_LEVEL) {
         blockCount++;
@@ -412,20 +436,33 @@ function generateTerrainChunk(gl, program, x, z) {
           goldOffsets.push(row, height, col);
           goldLocations.push({ chunkX: x, chunkZ: z });
         }
-        else if (isVolcanic) {
-          if(height < FIRE_LEVEL) {
-            stoneOffsets.push(row, height, col);
+        else {
+          if (isSnow) {
+            snowOffsets.push(row, height, col);
+          }
+          else if (isDesert) {
+            sandOffsets.push(row, height, col);
+          }
+          else if (thirdLevelNoise <= 0.5) {
+            grassOffsets.push(row, height, col);
           }
           else {
-            fireOffsets.push(row, height, col);
+            if (isVolcanic && height >= FIRE_LEVEL) {
+              fireOffsets.push(row, height, col);
+            }
+            else {
+              stoneOffsets.push(row, height, col);
+            }
           }
-        }
-        else {
-          grassOffsets.push(row, height, col);
         }
         height--;
       }
-      waterOffsets.push(row, WATER_LEVEL, col);
+      if (isDesert) {
+        sandOffsets.push(row, WATER_LEVEL, col);
+      }
+      else {
+        waterOffsets.push(row, WATER_LEVEL, col);
+      }
       stoneOffsets.push(row, TERRAIN_MAX_DEPTH, col);
       blockCount += 2;
     }
@@ -454,6 +491,25 @@ function generateTerrainChunk(gl, program, x, z) {
          20,21,22, 20,22,23 // bottom face
         ]
       }),
+      snowTop: createBlock(gl, program, {
+        texNum:  6,
+        offsets: snowOffsets,
+        enabledFaces: [
+         16,17,18, 16,18,19, // top face
+        ]
+      }),
+      snowSides: createBlock(gl, program, {
+        texNum:  1,
+        offsets: snowOffsets,
+        enabledFaces: [
+          0,1,2,  0,2,3, // front face
+          4,5,6,  4,6,7,   // right face
+         8,9,10, 8,10,11, // back face
+         12,13,14,  12,14,15, // left face
+        //  16,17,18, 16,18,19, // top face
+         20,21,22, 20,22,23 // bottom face
+        ]
+      }),
       stone: createBlock(gl, program, {
         texNum:  2,
         offsets: stoneOffsets
@@ -465,6 +521,10 @@ function generateTerrainChunk(gl, program, x, z) {
       fire: createBlock(gl, program, {
         texNum:  4,
         offsets: fireOffsets
+      }),
+      sand: createBlock(gl, program, {
+        texNum:  7,
+        offsets: sandOffsets
       }),
       gold: createBlock(gl, program, {
         texNum:  5,
@@ -487,6 +547,16 @@ function addTerrainChunkToNode(node, chunk) {
     params: {
     }
   });
+  let snowTopNode = chunkNode.add('shape', {
+    shapeFunc: blocks.snowTop,
+    params: {
+    }
+  });
+  let snowSidesNode = chunkNode.add('shape', {
+    shapeFunc: blocks.snowSides,
+    params: {
+    }
+  });
   let stoneNode = chunkNode.add('shape', {
     shapeFunc: blocks.stone,
     params: {
@@ -499,6 +569,11 @@ function addTerrainChunkToNode(node, chunk) {
   });
   let fireNode = chunkNode.add('shape', {
     shapeFunc: blocks.fire,
+    params: {
+    }
+  });
+  let sandNode = chunkNode.add('shape', {
+    shapeFunc: blocks.sand,
     params: {
     }
   });
@@ -798,7 +873,9 @@ window.onload = function(){
     initializeTexture(gl, gl.TEXTURE2, 'stone.png'),
     initializeTexture(gl, gl.TEXTURE3, 'water.png'),
     initializeTexture(gl, gl.TEXTURE4, 'fire2.jpg'),
-    initializeTexture(gl, gl.TEXTURE5, 'gold.jpg')
+    initializeTexture(gl, gl.TEXTURE5, 'gold.jpg'),
+    initializeTexture(gl, gl.TEXTURE6, 'snow.jpg'),
+    initializeTexture(gl, gl.TEXTURE7, 'sand.jpg')
   ])
     .then(() => render())
     .catch(function (error) {alert('Failed to load texture '+  error.message);});
