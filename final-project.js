@@ -387,7 +387,6 @@ function createBlock(gl, program, params) {
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, block.indexBuffer);
 
-    // gl.drawElements(gl.TRIANGLES, block.indices.length, gl.UNSIGNED_BYTE, 0);
     gl.instanceExt.drawElementsInstancedANGLE(gl.TRIANGLES, block.indices.length, gl.UNSIGNED_BYTE, 0, block.offsets.length / 3);
   };
 }
@@ -613,10 +612,7 @@ window.onload = function(){
   let rootNode = createScenegraph(gl, program);
 
   let terrainTransform = mat4.create();
-  // mat4.translate(terrainTransform, terrainTransform, vec3.fromValues(-TERRAIN_CHUNK_SIZE * BLOCKSIZE / 2, 0, -TERRAIN_CHUNK_SIZE * BLOCKSIZE / 2));
   let terrainNode = rootNode.add('transformation', terrainTransform);
-
-  // terrainNode.add('shape', grid);
 
   let allGoldLocations = [];
   let totalChunkCount = 0;
