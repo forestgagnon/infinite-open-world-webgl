@@ -396,7 +396,7 @@ function generateTerrainChunk(gl, program, x, z) {
   let hasMountains = getRandomInt(0,10) === 1;
   let goldLocations = [];
   let blockCount = 0;
-  let grassOffsets = [], stoneOffsets = [], waterOffsets = [], fireOffsets = [], snowOffsets = [], sandOffsets = [], goldOffsets = [];
+  let grassOffsets = [], stoneOffsets = [], waterOffsets = [], frozenWaterOffsets = [], fireOffsets = [], snowOffsets = [], sandOffsets = [], goldOffsets = [];
   const xModifier = TERRAIN_CHUNK_SIZE * x;
   const zModifier = TERRAIN_CHUNK_SIZE * z;
   let chunk = [];
@@ -457,7 +457,10 @@ function generateTerrainChunk(gl, program, x, z) {
         }
         height--;
       }
-      if (isDesert) {
+      if (isSnow && Math.abs(snowNoise) >= 0.1) {
+        frozenWaterOffsets.push(row, WATER_LEVEL, col);
+      }
+      else if (isDesert) {
         sandOffsets.push(row, WATER_LEVEL, col);
       }
       else {
@@ -518,6 +521,10 @@ function generateTerrainChunk(gl, program, x, z) {
         texNum:  3,
         offsets: waterOffsets
       }),
+      frozenWater: createBlock(gl, program, {
+        texNum:  8,
+        offsets: frozenWaterOffsets
+      }),
       fire: createBlock(gl, program, {
         texNum:  4,
         offsets: fireOffsets
@@ -574,6 +581,11 @@ function addTerrainChunkToNode(node, chunk) {
   });
   let sandNode = chunkNode.add('shape', {
     shapeFunc: blocks.sand,
+    params: {
+    }
+  });
+  let frozenWaterNode = chunkNode.add('shape', {
+    shapeFunc: blocks.frozenWater,
     params: {
     }
   });
@@ -875,7 +887,8 @@ window.onload = function(){
     initializeTexture(gl, gl.TEXTURE4, 'fire2.jpg'),
     initializeTexture(gl, gl.TEXTURE5, 'gold.jpg'),
     initializeTexture(gl, gl.TEXTURE6, 'snow.jpg'),
-    initializeTexture(gl, gl.TEXTURE7, 'sand.jpg')
+    initializeTexture(gl, gl.TEXTURE7, 'sand.jpg'),
+    initializeTexture(gl, gl.TEXTURE8, 'frozen-water.png')
   ])
     .then(() => render())
     .catch(function (error) {alert('Failed to load texture '+  error.message);});
