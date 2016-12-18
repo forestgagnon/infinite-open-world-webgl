@@ -404,7 +404,7 @@ function generateTerrainChunk(gl, program, x, z) {
     for (let col = 0; col < TERRAIN_CHUNK_SIZE; col++) {
       let firstLevelNoise = noise.simplex2((xModifier + row) / 50, (zModifier + col) / 50);
       let secondLevelNoise = noise.simplex2((xModifier + row) / 25, (zModifier + col) / 25);
-      let height = Math.round(5 * firstLevelNoise + secondLevelNoise);
+      let height = Math.round(5 * firstLevelNoise * secondLevelNoise);
       chunk[row][col] = height;
       while (height > WATER_LEVEL) {
         blockCount++;
