@@ -4,7 +4,7 @@
 * Chunks which are not near the player (i.e. not visible) are disabled in the scenegraph and thus not rendered.
 * If the player returns to the same chunk later, it will not have changed.
 * I used a WebGL plugin which adds support for instancing, which allows for all blocks of the same type to be rendered
-* with one draw call per chunk.
+* with one draw call per chunk, which is crucial for rendering hundreds of thousands of cubes at a reasonable framerate.
 * Fog has been added to counter the pop-in effect during the generation of new chunks, making it appear seamless.
 * On my machine (Nvidia GTX 970M, i7 6820HK), player movement never outpaces the terrain generation, and it runs above 60FPS.
 * Unfortunately, all chunks are stored in RAM, so it quickly starts to take up hundreds of megabytes
