@@ -16,7 +16,7 @@
 *
 * There are many, many layers of noise involved in the terrain generation, both for height as well as the block types. There are arid flat deserts,
 * snowy areas (with frozen lakes inland but not near the edges), grassy areas, and occasional mountains and even volcanos. Most of it is tiled
-* seperately from chunk boundaries (there are no obvious seams between chunks for things like sand, snow, rock, grass etc..)
+* separately from chunk boundaries (there are no obvious seams between chunks for things like sand, snow, rock, grass etc..)
 *
 *
 */
