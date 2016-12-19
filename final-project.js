@@ -6,8 +6,8 @@
 * I used a WebGL plugin which adds support for instancing, which allows for all blocks of the same type to be rendered
 * with one draw call per chunk, which is crucial for rendering hundreds of thousands of cubes at a reasonable framerate.
 * Fog has been added to counter the pop-in effect during the generation of new chunks, making it appear seamless.
-* On my machine (Nvidia GTX 970M, i7 6820HK), player movement never outpaces the terrain generation, and it runs above 60FPS.
-* Unfortunately, all chunks are stored in RAM, so it quickly starts to take up hundreds of megabytes
+* On my machine (Nvidia GTX 970M, i7 6820HK), player movement never outpaces the terrain generation unless flying high above the map,
+* and it runs above 60FPS. Unfortunately, all chunks are stored in RAM, so it quickly starts to take up hundreds of megabytes
 * (a good solution would be storing far away chunks more efficiently, and maybe on the disk)
 *
 * Gold is randomly scattered throughout the world... Despite the rarity, It's not TOO hard to find some on the surface
