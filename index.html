@@ -3,89 +3,100 @@
 <!DOCTYPE html>
 
 <html>
-  <head>
-    <meta charset="utf-8">
-    <title>Final Project</title>
-    <script type="text/javascript" src="http://www.cs.middlebury.edu/~candrews/classes/cs461/js/midd-webgl-utils.js">
-      </script>
-      <script type="text/javascript" src="http://www.cs.middlebury.edu/~candrews/classes/cs461/js/gl-matrix.js">
 
-      </script>
-      <script type="text/javascript" src="perlin.js"></script>
-      <script type="text/javascript" src="http://underscorejs.org/underscore-min.js"></script>
-      <script type="text/javascript" src="final-project.js"></script>
-    <style>
-      body {
-        font-family: sans-serif;
-      }
-      .marginright {
-        margin-right: 20px;
-      }
-      #game-div {
-        position: relative;
-      }
-      #HUD {
-        position: absolute;
-        top: 0px;
-        left: 0px;
-        z-index: 0;
-        background-color: white;
-        padding: 10px;
-        opacity: 0.7;
-        min-width: 700px;
-      }
+<head>
+  <meta charset="utf-8">
+  <title>Final Project</title>
+  <script type="text/javascript" src="vendor/gl-matrix.js">
+  </script>
+  <script type="text/javascript" src="vendor/middutils.js">
+  </script>
+  <script type="text/javascript" src="perlin.js"></script>
+  <script type="text/javascript" src="vendor/underscore-min.js"></script>
+  <script type="text/javascript" src="final-project.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+    }
 
-      #compass-div {
-        display: flex;
-        align-items: center;
-        flex-direction: row;
-        justify-content: flex-start;
-      }
-      #compass {
-        width: 100px;
-        height: 100px;
-        margin-right: 20px;
-      }
-      #canvas-div {
-        position: absolute;
-        z-index: -1;
-      }
-      #current-chunk, #blockcount, #goldcount, #chunkcount {
-        font-weight: bold;
-      }
+    .marginright {
+      margin-right: 20px;
+    }
 
-    </style>
-  </head>
-  <body style="margin: 0px;">
-    <div id='description'>
-      <p>Forest Gagnon - CS461 Final Project</p>
-      <p>
-        <strong>CONTROLS</strong>: <strong>WASD</strong> to move/strafe. <strong>HOLD SHIFT</strong> to run faster. <strong>CLICK THE GAME to lock your cursor for aiming</strong>, <strong>R/F</strong> to pan up/down
-      </p>
-    </div>
-    <div id='game-div'>
-      <div id='HUD'>
-        <div id='left'>
-          <p>
-            There are <span id='goldcount'>0</span> gold blocks in this world,
-            which has <span id='blockcount'>0</span> blocks in <span id='chunkcount'>0</span> chunks.
-          </p>
+    #game-div {
+      position: relative;
+    }
+
+    #HUD {
+      position: absolute;
+      top: 0px;
+      left: 0px;
+      z-index: 0;
+      background-color: white;
+      padding: 10px;
+      opacity: 0.7;
+      min-width: 700px;
+    }
+
+    #compass-div {
+      display: flex;
+      align-items: center;
+      flex-direction: row;
+      justify-content: flex-start;
+    }
+
+    #compass {
+      width: 100px;
+      height: 100px;
+      margin-right: 20px;
+    }
+
+    #canvas-div {
+      position: absolute;
+      z-index: -1;
+    }
+
+    #current-chunk,
+    #blockcount,
+    #goldcount,
+    #chunkcount {
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body style="margin: 0px;">
+  <div id='description'>
+    <p>Forest Gagnon - CS461 Final Project</p>
+    <p>
+      <strong>CONTROLS</strong>: <strong>WASD</strong> to move/strafe. <strong>HOLD SHIFT</strong> to run faster.
+      <strong>CLICK THE GAME to lock your cursor for aiming</strong>, <strong>R/F</strong> to pan up/down
+    </p>
+  </div>
+  <div id='game-div'>
+    <div id='HUD'>
+      <div id='left'>
+        <p>
+          There are <span id='goldcount'>0</span> gold blocks in this world,
+          which has <span id='blockcount'>0</span> blocks in <span id='chunkcount'>0</span> chunks.
+        </p>
+      </div>
+      <div id='compass-div'>
+        <img id='compass' src='compass.png' />
+        <div class='marginright'>
+          Current Chunk Coordinates: <span id='current-chunk'></span>
         </div>
-        <div id='compass-div'>
-          <img id='compass' src='compass.png'/>
-          <div class='marginright'>
-            Current Chunk Coordinates: <span id='current-chunk'></span>
-          </div>
-          <div>
-            <span id='goldradar'>Better start looking...</span>
-          </div>
-        </div>
-
+        <div>
+          <span id='goldradar'>Better start looking...</span>
         </div>
       </div>
-      <div id="canvas-div">
-        <canvas id="canvas" width="100%" height="100%"></canvas>
-      </div>
+
     </div>
-  </body>
+  </div>
+  <div id="canvas-div">
+    <canvas id="canvas" width="100%" height="100%"></canvas>
+  </div>
+  </div>
+</body>
+
 </html>

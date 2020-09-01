@@ -87,27 +87,27 @@ const WALL_CLIP_DISTANCE = 0.2;
 const MOVEMENT_SPEED_FACTOR = 0.1;
 const MOVEMENT_SPEED_FACTOR_RUNNING = MOVEMENT_SPEED_FACTOR * 2;
 
-const createScenegraph = function(gl, program){
+const createScenegraph = function (gl, program) {
   let stack = [];
   let currentMatrix = mat4.create();
   let u_Transform = gl.getUniformLocation(program, 'u_Transform');
 
-  let createTransformationNode = function(matrix){
+  let createTransformationNode = function (matrix) {
     let enabled = true;
     let children = [];
     return {
-      add: function(type, data){
+      add: function (type, data) {
         let node;
-        if (type === "transformation"){
+        if (type === "transformation") {
           node = createTransformationNode(data);
-        }else if (type === "shape"){
+        } else if (type === "shape") {
           node = createShapeNode(data.shapeFunc, data.params);
         }
         children.push(node);
         node.parent = this;
         return node;
       },
-      apply: () =>{
+      apply: () => {
         if (!enabled) {
           return;
         }
@@ -132,11 +132,11 @@ const createScenegraph = function(gl, program){
     };
   };
 
-  let createShapeNode = function(shapeFunc, params){
+  let createShapeNode = function (shapeFunc, params) {
     let enabled = true;
     return {
       apply: () => {
-        if(enabled) {
+        if (enabled) {
           shapeFunc(params);
         }
       },
@@ -156,7 +156,7 @@ const createScenegraph = function(gl, program){
 };
 
 //========== CAMERA ==========\\
-const createCamera = function(gl, program, eyeVector) {
+const createCamera = function (gl, program, eyeVector) {
   const CAMERA_PITCH_FACTOR = PERSPECTIVE_FAR_PLANE - PERSPECTIVE_NEAR_PLANE;
   const STRAFE_FACTOR = MOVEMENT_SPEED_FACTOR;
 
@@ -244,13 +244,13 @@ const createCamera = function(gl, program, eyeVector) {
     tilt: (radians) => {
       if (radians < 0) {
         let newPitch = pitch + radians;
-        if (newPitch > -Math.PI/2 + Math.PI/16) {
+        if (newPitch > -Math.PI / 2 + Math.PI / 16) {
           pitch = newPitch;
         }
       }
       else if (radians > 0) {
         let newPitch = pitch + radians;
-        if (newPitch < Math.PI/2 - Math.PI/16) {
+        if (newPitch < Math.PI / 2 - Math.PI / 16) {
           pitch = newPitch;
         }
       }
@@ -312,42 +312,42 @@ function createBlock(gl, program, params) {
   }
   else {
     indices = new Uint8Array([
-      0,1,2,  0,2,3, // front face
-      4,5,6,  4,6,7,   // right face
-     8,9,10, 8,10,11, // back face
-     12,13,14,  12,14,15, // left face
-     16,17,18, 16,18,19, // top face
-     20,21,22, 20,22,23 // bottom face
+      0, 1, 2, 0, 2, 3, // front face
+      4, 5, 6, 4, 6, 7,   // right face
+      8, 9, 10, 8, 10, 11, // back face
+      12, 13, 14, 12, 14, 15, // left face
+      16, 17, 18, 16, 18, 19, // top face
+      20, 21, 22, 20, 22, 23 // bottom face
 
     ])
   }
 
   let block = {
     vertices: new Float32Array([
-      BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, 0,0, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE, // front face
-      BLOCKSIZE, BLOCKSIZE, BLOCKSIZE,  BLOCKSIZE,0, BLOCKSIZE,  BLOCKSIZE,0,0,  BLOCKSIZE, BLOCKSIZE,0, // right face
-      BLOCKSIZE, BLOCKSIZE,0,  BLOCKSIZE,0,0, 0,0,0, 0, BLOCKSIZE,0, // back face
-     0, BLOCKSIZE,0, 0,0,0, 0,0, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, // left face
-      BLOCKSIZE, BLOCKSIZE, BLOCKSIZE,  BLOCKSIZE, BLOCKSIZE,0, 0, BLOCKSIZE,0, 0, BLOCKSIZE, BLOCKSIZE, // top face
-      BLOCKSIZE,0, BLOCKSIZE, 0,0, BLOCKSIZE, 0,0,0,  BLOCKSIZE,0,0, // bottom face
+      BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, 0, 0, BLOCKSIZE, BLOCKSIZE, 0, BLOCKSIZE, // front face
+      BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, 0, 0, BLOCKSIZE, BLOCKSIZE, 0, // right face
+      BLOCKSIZE, BLOCKSIZE, 0, BLOCKSIZE, 0, 0, 0, 0, 0, 0, BLOCKSIZE, 0, // back face
+      0, BLOCKSIZE, 0, 0, 0, 0, 0, 0, BLOCKSIZE, 0, BLOCKSIZE, BLOCKSIZE, // left face
+      BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, BLOCKSIZE, 0, 0, BLOCKSIZE, 0, 0, BLOCKSIZE, BLOCKSIZE, // top face
+      BLOCKSIZE, 0, BLOCKSIZE, 0, 0, BLOCKSIZE, 0, 0, 0, BLOCKSIZE, 0, 0, // bottom face
     ]),
 
     normals: new Float32Array([
-      0.0, 0.0, 1.0,  0.0, 0.0, 1.0,  0.0, 0.0, 1.0,  0.0, 0.0, 1.0, // front face
-      1.0, 0.0, 0.0,  1.0, 0.0, 0.0,  1.0, 0.0, 0.0,  1.0, 0.0, 0.0, // right face
-      0.0, 0.0,-1.0,  0.0, 0.0,-1.0,  0.0, 0.0,-1.0,  0.0, 0.0,-1.0, // back face
-     -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, // left face
-      0.0, 1.0, 0.0,  0.0, 1.0, 0.0,  0.0, 1.0, 0.0,  0.0, 1.0, 0.0, // top face
-      0.0,-1.0, 0.0,  0.0,-1.0, 0.0,  0.0,-1.0, 0.0,  0.0,-1.0, 0.0, // bottom face
+      0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, // front face
+      1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, // right face
+      0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, // back face
+      -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, // left face
+      0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, // top face
+      0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, 0.0, -1.0, 0.0, // bottom face
     ]),
 
     textureCoordinates: new Float32Array([
-      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // front face
+      BLOCKSIZE, BLOCKSIZE, 0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // front face
       0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, BLOCKSIZE, BLOCKSIZE, // right face
       0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, BLOCKSIZE, BLOCKSIZE,  // back face
       0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, BLOCKSIZE, BLOCKSIZE, // left face
-      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // top face
-      BLOCKSIZE, BLOCKSIZE,  0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // bottom face
+      BLOCKSIZE, BLOCKSIZE, 0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // top face
+      BLOCKSIZE, BLOCKSIZE, 0.0, BLOCKSIZE, 0.0, 0.0, BLOCKSIZE, 0.0, // bottom face
     ]),
 
     indices: indices,
@@ -380,13 +380,13 @@ function createBlock(gl, program, params) {
     gl.uniform1i(program.u_Sampler, texNum);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, block.vertexBuffer);
-    gl.vertexAttribPointer(program.a_Position, block.dimensions, gl.FLOAT, false, 0,0);
+    gl.vertexAttribPointer(program.a_Position, block.dimensions, gl.FLOAT, false, 0, 0);
 
     // gl.bindBuffer(gl.ARRAY_BUFFER, block.normalBuffer);
     // gl.vertexAttribPointer(program.a_Normal, block.dimensions, gl.FLOAT, false, 0,0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, block.textureBuffer);
-    gl.vertexAttribPointer(program.a_TexCoord, 2, gl.FLOAT, false, 0,0);
+    gl.vertexAttribPointer(program.a_TexCoord, 2, gl.FLOAT, false, 0, 0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, block.offsetBuffer);
     gl.vertexAttribPointer(program.a_Offset, 3, gl.FLOAT, false, 0, 0);
@@ -399,8 +399,8 @@ function createBlock(gl, program, params) {
 }
 
 function generateTerrainChunk(gl, program, x, z) {
-  let isVolcanic = getRandomInt(0,10) === 1;
-  let hasMountains = getRandomInt(0,10) === 1;
+  let isVolcanic = getRandomInt(0, 10) === 1;
+  let hasMountains = getRandomInt(0, 10) === 1;
   let goldLocations = [];
   let blockCount = 0;
   let grassOffsets = [], stoneOffsets = [], waterOffsets = [], frozenWaterOffsets = [], fireOffsets = [], snowOffsets = [], snowyStoneOffsets = [], sandOffsets = [], goldOffsets = [];
@@ -488,84 +488,84 @@ function generateTerrainChunk(gl, program, x, z) {
     numBlocks: blockCount,
     blocks: {
       grassTop: createBlock(gl, program, {
-        texNum:  0,
+        texNum: 0,
         offsets: grassOffsets,
         enabledFaces: [
-         16,17,18, 16,18,19, // top face
+          16, 17, 18, 16, 18, 19, // top face
         ]
       }),
       grassSides: createBlock(gl, program, {
-        texNum:  1,
+        texNum: 1,
         offsets: grassOffsets,
         enabledFaces: [
-          0,1,2,  0,2,3, // front face
-          4,5,6,  4,6,7,   // right face
-         8,9,10, 8,10,11, // back face
-         12,13,14,  12,14,15, // left face
-        //  16,17,18, 16,18,19, // top face
-         20,21,22, 20,22,23 // bottom face
+          0, 1, 2, 0, 2, 3, // front face
+          4, 5, 6, 4, 6, 7,   // right face
+          8, 9, 10, 8, 10, 11, // back face
+          12, 13, 14, 12, 14, 15, // left face
+          //  16,17,18, 16,18,19, // top face
+          20, 21, 22, 20, 22, 23 // bottom face
         ]
       }),
       snowTop: createBlock(gl, program, {
-        texNum:  6,
+        texNum: 6,
         offsets: snowOffsets,
         enabledFaces: [
-         16,17,18, 16,18,19, // top face
+          16, 17, 18, 16, 18, 19, // top face
         ]
       }),
       snowSides: createBlock(gl, program, {
-        texNum:  1,
+        texNum: 1,
         offsets: snowOffsets,
         enabledFaces: [
-          0,1,2,  0,2,3, // front face
-          4,5,6,  4,6,7,   // right face
-         8,9,10, 8,10,11, // back face
-         12,13,14,  12,14,15, // left face
-        //  16,17,18, 16,18,19, // top face
-         20,21,22, 20,22,23 // bottom face
+          0, 1, 2, 0, 2, 3, // front face
+          4, 5, 6, 4, 6, 7,   // right face
+          8, 9, 10, 8, 10, 11, // back face
+          12, 13, 14, 12, 14, 15, // left face
+          //  16,17,18, 16,18,19, // top face
+          20, 21, 22, 20, 22, 23 // bottom face
         ]
       }),
       snowyStoneTop: createBlock(gl, program, {
-        texNum:  6,
+        texNum: 6,
         offsets: snowyStoneOffsets,
         enabledFaces: [
-         16,17,18, 16,18,19, // top face
+          16, 17, 18, 16, 18, 19, // top face
         ]
       }),
       snowyStoneSides: createBlock(gl, program, {
-        texNum:  2,
+        texNum: 2,
         offsets: snowyStoneOffsets,
         enabledFaces: [
-          0,1,2,  0,2,3, // front face
-          4,5,6,  4,6,7,   // right face
-         8,9,10, 8,10,11, // back face
-         12,13,14,  12,14,15, // left face
-        //  16,17,18, 16,18,19, // top face
-         20,21,22, 20,22,23 // bottom face
+          0, 1, 2, 0, 2, 3, // front face
+          4, 5, 6, 4, 6, 7,   // right face
+          8, 9, 10, 8, 10, 11, // back face
+          12, 13, 14, 12, 14, 15, // left face
+          //  16,17,18, 16,18,19, // top face
+          20, 21, 22, 20, 22, 23 // bottom face
         ]
       }),
       stone: createBlock(gl, program, {
-        texNum:  2,
+        texNum: 2,
         offsets: stoneOffsets
       }),
       water: createBlock(gl, program, {
-        texNum:  3,
+        texNum: 3,
         offsets: waterOffsets
       }),
       frozenWater: createBlock(gl, program, {
-        texNum:  8,
+        texNum: 8,
         offsets: frozenWaterOffsets
       }),
       fire: createBlock(gl, program, {
-        texNum:  4,
+        texNum: 4,
         offsets: fireOffsets
       }),
       sand: createBlock(gl, program, {
-        texNum:  7,
+        texNum: 7,
         offsets: sandOffsets
       }),
       gold: createBlock(gl, program, {
-        texNum:  5,
+        texNum: 5,
         offsets: goldOffsets
       })
     }
@@ -654,7 +654,7 @@ function positionAndAddChunk(gl, program, node, x, z) {
 
 
 //========== MAIN ONLOAD FUNCTION ==========\\
-window.onload = function(){
+window.onload = function () {
 
   let canvas = document.getElementById('canvas');
   let gameDiv = document.getElementById('game-div');
@@ -664,9 +664,9 @@ window.onload = function(){
   gameDiv.height = canvas.height;
   let gl;
   // catch the error from creating the context since this has nothing to do with the code
-  try{
+  try {
     gl = middUtils.initializeGL(canvas);
-  } catch (e){
+  } catch (e) {
     alert('Could not create WebGL context');
     return;
   }
@@ -687,7 +687,7 @@ window.onload = function(){
   gl.uniform1f(program.u_Blocksize, BLOCKSIZE);
 
   gl.enable(gl.DEPTH_TEST);
-  gl.clearColor(0,0,0,1);
+  gl.clearColor(0, 0, 0, 1);
 
   let keyMap = {};
   let mouseMovementInfo = {
@@ -695,18 +695,18 @@ window.onload = function(){
     tiltRadians: 0
   };
 
-  window.onkeydown = function(e){
-      keyMap[e.which] = true;
-      if(e.shiftKey) {
-        keyMap['SHIFT'] = true;
-      }
+  window.onkeydown = function (e) {
+    keyMap[e.which] = true;
+    if (e.shiftKey) {
+      keyMap['SHIFT'] = true;
+    }
   };
 
-  window.onkeyup = function(e){
-       keyMap[e.which] = false;
-       if(!e.shiftKey) {
-         keyMap['SHIFT'] = false;
-       }
+  window.onkeyup = function (e) {
+    keyMap[e.which] = false;
+    if (!e.shiftKey) {
+      keyMap['SHIFT'] = false;
+    }
   };
 
   const handleMouseMove = (e) => {
@@ -762,7 +762,7 @@ window.onload = function(){
   }
 
   let lastDeepChunkCheck = 0;
-  let render = function(){
+  let render = function () {
 
 
     if (mouseMovementInfo.turnRadians !== 0) {
@@ -776,41 +776,41 @@ window.onload = function(){
 
     // check which keys that we care about are down
 
-    if (keyMap['W'.charCodeAt(0)]){
+    if (keyMap['W'.charCodeAt(0)]) {
       camera.moveForward({
         movementSpeed: keyMap['SHIFT'] ? MOVEMENT_SPEED_FACTOR_RUNNING : MOVEMENT_SPEED_FACTOR
       });
-    }else if (keyMap['S'.charCodeAt(0)]){
+    } else if (keyMap['S'.charCodeAt(0)]) {
       camera.moveBackward({
         movementSpeed: keyMap['SHIFT'] ? MOVEMENT_SPEED_FACTOR_RUNNING : MOVEMENT_SPEED_FACTOR
       });
     }
 
-    if (keyMap['A'.charCodeAt(0)]){
+    if (keyMap['A'.charCodeAt(0)]) {
       camera.strafeLeft({
 
       });
-    }else if (keyMap['D'.charCodeAt(0)]){
+    } else if (keyMap['D'.charCodeAt(0)]) {
       camera.strafeRight({
 
       });
     }
 
-    if(keyMap[38]) {
+    if (keyMap[38]) {
       camera.tilt(-TURN_DEGREES);
-    } else if(keyMap[40]) {
+    } else if (keyMap[40]) {
       camera.tilt(TURN_DEGREES);
     }
 
-    if(keyMap[37]) {
+    if (keyMap[37]) {
       camera.turn(TURN_DEGREES);
-    } else if(keyMap[39]) {
+    } else if (keyMap[39]) {
       camera.turn(-TURN_DEGREES);
     }
 
-    if(keyMap['R'.charCodeAt(0)]) {
+    if (keyMap['R'.charCodeAt(0)]) {
       camera.moveUp();
-    } else if(keyMap['F'.charCodeAt(0)]) {
+    } else if (keyMap['F'.charCodeAt(0)]) {
       camera.moveDown();
     }
 
@@ -821,7 +821,7 @@ window.onload = function(){
     // DRAW STUFF HERE
 
     let projection = mat4.create();
-    mat4.perspective(projection, Math.PI/3, canvas.width/canvas.height, PERSPECTIVE_NEAR_PLANE, PERSPECTIVE_FAR_PLANE);
+    mat4.perspective(projection, Math.PI / 3, canvas.width / canvas.height, PERSPECTIVE_NEAR_PLANE, PERSPECTIVE_FAR_PLANE);
     gl.uniformMatrix4fv(program.u_Projection, false, projection);
 
     const eyeVector = camera.getEyeVector();
@@ -932,24 +932,24 @@ window.onload = function(){
     initializeTexture(gl, gl.TEXTURE8, 'frozen-water.png')
   ])
     .then(() => render())
-    .catch(function (error) {alert('Failed to load texture '+  error.message);});
+    .catch(function (error) { alert('Failed to load texture ' + error.message); });
 
 };
 
 function initializeTexture(gl, textureid, filename) {
   //Borrowed from http://bl.ocks.org/ProfBlack/d65bc62402b50a8e46d67095eeaeb5f4
-  return new Promise(function(resolve, reject){
+  return new Promise(function (resolve, reject) {
     var texture = gl.createTexture();
 
     var image = new Image();
-    image.onload = function(){
+    image.onload = function () {
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1);
       gl.activeTexture(textureid);
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
 
-      let ext = gl.getExtension("WEBKIT_EXT_texture_filter_anisotropic") || gl.getExtension("MOZ_EXT_texture_filter_anisotropic");
+      let ext = gl.getExtension("EXT_texture_filter_anisotropic") || gl.getExtension("WEBKIT_EXT_texture_filter_anisotropic") || gl.getExtension("MOZ_EXT_texture_filter_anisotropic");
       gl.texParameterf(gl.TEXTURE_2D, ext.TEXTURE_MAX_ANISOTROPY_EXT, 9);
 
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, image);
@@ -958,9 +958,9 @@ function initializeTexture(gl, textureid, filename) {
     };
 
 
-    image.onerror = function(error){
+    image.onerror = function (error) {
 
-        reject(Error(filename));
+      reject(Error(filename));
     }
 
     image.src = filename;
@@ -977,5 +977,5 @@ function getRandom(min, max) {
 }
 
 function rgbToFloats(r, g, b) {
-  return { r: r/255, g: g/255, b: b/255 };
+  return { r: r / 255, g: g / 255, b: b / 255 };
 }
